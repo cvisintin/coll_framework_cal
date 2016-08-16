@@ -1,4 +1,10 @@
-library("data.table")
+require(RPostgreSQL)
+require(data.table)
+require(raster)
+require(boot)
+
+drv <- dbDriver("PostgreSQL")  #Specify a driver for postgreSQL type database
+con <- dbConnect(drv, dbname="qaeco_spatial", user="qaeco", password="Qpostgres15", host="boab.qaeco.com", port="5432")  #Connection to database server on Boab
 
 #Define function for receiver operator characteristic (ROC)
 "roc" <- function (obsdat, preddat){
@@ -12,80 +18,70 @@ library("data.table")
     return(round(roc, 4))
   }
 
-egk.data <- as.data.table(read.delim("Pred/vic_egk_preds.csv", header=T, sep=","))  #Read in egk occurrence data
-egk.data$EGK[egk.data$EGK == 0] <- .0001
-setkey(egk.data,UID)
+roads <- as.data.table(dbGetQuery(con,"
+  SELECT
+    r.uid as uid, ST_X(r.geom) AS x, ST_Y(r.geom) AS y
+  FROM
+	  (SELECT
+      uid, ST_ClosestPoint(geom, ST_Centroid(geom)) AS geom
+		FROM
+      gis_victoria.vic_gda9455_roads_state) AS r
+  "))
+setkey(roads,uid)
 
-tvol.data <- as.data.table(read.delim("Pred/vic_vol_preds.csv", header=T, sep=","))  #Read in traffic volume data
-setkey(tvol.data,UID)
+tvol.preds <- as.data.table(read.csv("output/vic_tvol_preds_rf.csv"))  #Read in collision data training set (presences/absences of collisions and covariates)
 
-tspd.data <- as.data.table(read.delim("Pred/vic_speed_preds.csv", header=T, sep=","))  #Read in traffic speed data
-setkey(tspd.data,UID)
+tspd.preds <- as.data.table(read.csv("output/vic_tspd_preds_rf.csv"))  #Read in collision data training set (presences/absences of collisions and covariates)
 
-coll.data <- as.data.table(read.delim("Data/vic_collisiondata.csv", header=T, sep=","))  #Read in collision data
-setkey(coll.data,UID)
+cov.data <- Reduce(function(x, y) merge(x, y, all=TRUE), list(roads,tvol.preds,tspd.preds))
 
-#ncoll.data <- as.data.table(read.delim("Data/vic_collisioncountdata.csv", header=T, sep=",")) ####Poisson
-#setkey(ncoll.data,UID) ####Poisson
+sdm.preds <- raster("output/egk_preds_brt.tif")
 
-x.data <- Reduce(merge,list(egk.data,tvol.data,tspd.data))
+cov.data$egk <- raster::extract(sdm.preds,cov.data[,.(x,y)])
 
-data1 <- merge(coll.data,x.data, by="UID")
-#ndata <- merge(ncoll.data,x.data, by="UID") ####Poisson
+coll <- as.data.table(dbGetQuery(con,"
+  SELECT DISTINCT ON (p.id)
+    r.uid AS uid, CAST(1 AS INTEGER) AS coll
+	FROM
+    gis_victoria.vic_gda9455_roads_state as r,
+      (SELECT
+        id, geom
+      FROM
+        gis_victoria.vic_gda9455_fauna_wv
+      WHERE
+        species = 'Kangaroo -  Eastern Grey'
+      AND
+        cause = 'hit by vehicle') AS p
+  WHERE ST_DWithin(p.geom,r.geom,100)
+  ORDER BY p.id, ST_Distance(p.geom,r.geom)
+  "))
+setkey(coll,uid)
 
-#set.seed(123)
-#data0 <- cbind(x.data[sample(seq(1:nrow(x.data)),3*nrow(data1)),],"COLL"=rep(0,3*nrow(data1)))
-data0 <- cbind(x.data,"COLL"=rep(0,nrow(x.data)))
-setcolorder(data0, colnames(data1))
+data1 <- merge(cov.data, coll)
+
+set.seed(123)
+data0 <- cbind(cov.data[sample(seq(1:nrow(cov.data)),2*nrow(data1)),],"coll"=rep(0,2*nrow(data1)))
 
 model.data <- rbind(data1,data0)
 model.data <- na.omit(model.data)
 
-#model.data <- na.omit(ndata) ####Poisson
-
-#Calculate natural logarithm of each covariate to test multiplicative effect of linear relationship
-model.data$log.EGK <- log(model.data$EGK)
-model.data$log.TVOL <- log(model.data$TVOL)
-model.data$log.TSPD <- log(model.data$TSPD)
-
-#Center logged covariates by subtracting means
-model.data$c.log.EGK <- model.data$log.EGK - mean(model.data$log.EGK)
-model.data$c.log.TVOL <- model.data$log.TVOL - mean(model.data$log.TVOL)
-model.data$c.log.TSPD <- model.data$log.TSPD - mean(model.data$log.TSPD)
-
-coll.glm <- glm(formula = COLL ~ c.log.EGK + c.log.TVOL + I(c.log.TVOL^2) + c.log.TSPD, family=binomial, data = model.data)  #Fit regression model
+coll.glm <- glm(formula = coll ~ log(egk) + log(tvol) + I(log(tvol)^2) + log(tspd), family=binomial(link = "cloglog"), data = model.data)  #Fit regression model
 
 summary(coll.glm)  #Examine fit of regression model
 
 paste("% Deviance Explained: ",round(((coll.glm$null.deviance - coll.glm$deviance)/coll.glm$null.deviance)*100,2),sep="")  #Report reduction in deviance
 
-predpr <- predict(coll.glm,type="response")
-roc(model.data$COLL,predpr)
+write.csv(signif(summary(coll.glm)$coefficients, digits=4),"output/vic_coll_coef.csv",row.names=FALSE)
 
-indep.data <- na.omit(x.data)  #Remove any records with missing information in covariate data
+write.csv(formatC(anova(coll.glm)[2:4,2]/sum(anova(coll.glm)[2:4,2]), format='f',digits=4),"output/vic_coll_anova.csv",row.names=FALSE)
 
-#Calculate natural logarithm of each covariate
-indep.data$log.EGK <- log(indep.data$EGK)
-indep.data$log.TVOL <- log(indep.data$TVOL)
-indep.data$log.TSPD <- log(indep.data$TSPD)
+save(coll.glm,file="output/vic_coll_glm")
 
-#Center logged covariates by subtracting means to match covariates used in regression mode
-indep.data$c.log.EGK <- indep.data$log.EGK - mean(indep.data$log.EGK)
-indep.data$c.log.TVOL <- indep.data$log.TVOL - mean(indep.data$log.TVOL)
-indep.data$c.log.TSPD <- indep.data$log.TSPD - mean(indep.data$log.TSPD)
+save(model.data,file="output/vic_coll_model_data")
 
-glm.preds <- predict(coll.glm, indep.data, type="response")  #Predict collision probability to all road segments using model fit
+coll.preds <- predict(coll.glm, cov.data, type="response")
 
-coll.preds <- data.table(UID=indep.data$UID,COLL=glm.preds)  #Combine predictions with unique IDs for all road segments
+coll.preds.df <- cbind("uid"=cov.data$uid,"collrisk"=coll.preds) #Combine predictions with unique IDs for all road segments
+coll.preds.df <- na.omit(coll.preds.df)
 
-write.csv(coll.preds, file = "Pred/vic_coll_preds.csv", row.names=FALSE)  #Write out predictions for all road segments
-
-#Poisson Modelling:
-
-ncoll.glm <- glm(formula = NCOLL ~ c.log.EGK + c.log.TVOL + I(c.log.TVOL^2) + c.log.TSPD, family=poisson, data = model.data) ####Poisson
-
-summary(ncoll.glm) ####Poisson
-
-paste("% Deviance Explained: ",round(((ncoll.glm$null.deviance - ncoll.glm$deviance)/ncoll.glm$null.deviance)*100,2),sep="") ####Poisson
-
-glm.preds <- predict(ncoll.glm, indep.data, type="response") ####Poisson
+write.csv(coll.preds.df, file = "output/vic_coll_preds_glm.csv", row.names=FALSE)
