@@ -1,0 +1,129 @@
+#Load packages
+require(data.table)
+require(doMC)
+require(maptools)
+require(rgeos)
+require(rgbif)
+require(raster)
+require(RPostgreSQL)
+
+drv <- dbDriver("PostgreSQL")  #Specify a driver for postgreSQL type database
+con <- dbConnect(drv, dbname="qaeco_spatial", user="qaeco", password="Qpostgres15", host="boab.qaeco.com", port="5432")  #Connection to database server on Boab
+
+grid.files <- list.files(path='data/grids/cal/envi') #Create vector of filenames
+
+grid.names <- substring(unlist(strsplit(grid.files,"\\_1000."))[(1:(2*(length(grid.files)))*2)-1][1:length(grid.files)],18) #Create vector of covariate names
+
+cal.rst.study <- raster("data/grids/cal/CAL_NAD8310_GRID_STUDY_1000.tif")
+#cal.rst.state <- raster("data/grids/cal/CAL_NAD8310_GRID_STATE_1000.tif")
+clip.study <- extent(445000,1165000,3962000,4329000) #Define clipping extent of maps
+#clip.state <- extent(374000,1318000,3613000,4654000)
+
+#Read in grids, crop, and multiply with template to create consistent covariate maps
+for (i in 1:length(grid.files)) {
+  temp <- raster(paste0("data/grids/cal/envi/",grid.files[i]))
+  #temp <- crop(temp, clip.state)
+  #assign(grid.names[i],temp * cal.rst.state)
+  temp <- crop(temp, clip.study)
+  assign(grid.names[i],temp * cal.rst.study)
+}
+vars <- stack(mget(grid.names)) #Combine all maps to single stack
+
+data0 <- read.csv("data/cal_study_bg_data_pts.csv")
+#data0 <- read.csv("data/cal_bg_data_pts.csv")
+
+#Specify study boundary for species records query
+# boundary <- readShapePoly("data/grids/cal/CAL_NAD83LL_ADMIN_STATE_SIMPLE.shp") #California shapefile for query boundary (projected in NAD83 (EPSG:4269))
+
+#Create WKT string
+# wkt <- writeWKT(boundary, byid = FALSE)
+
+#For complex shapes - simplify for query using convex hull
+# lonlat<- boundary@polygons[[1]]@Polygons[[1]]@coords ## extract the polygon coordinates
+# temp <- chull(lonlat) ## extract the convex hull of the polygon to reduce the length of the WKT string
+# lonlat <- lonlat[c(temp,temp[1]),]  ## overwrite the coordinates
+# wkt <- paste("POLYGON((",paste(apply(lonlat,1,function(z) paste(z,collapse=" ")),collapse=","),"))",sep="") ## create WKT string
+# rm(lonlat,temp)
+
+# Query database study boundary for species records
+wkt <- as.character(dbGetQuery(con,"
+  SELECT
+    ST_AsText(ST_ConvexHull(ST_Transform(geom,4326)))
+  FROM
+    gis_california.cal_nad8310_admin_study_area
+"))
+
+#Query database cal state for species records
+# wkt <- as.character(dbGetQuery(con,"
+#   SELECT
+#     ST_AsText(ST_ConvexHull(ST_Transform(geom,4326)))
+#   FROM
+#     gis_california.cal_nad8310_admin_state_simple
+# "))
+
+
+#Specify target species
+sp.target <- "Odocoileus hemionus"
+
+#Specify start year
+yr.start <- 2000
+
+#Specify end year
+yr.end <- 2015
+
+#Download target species data - add fields as required - note additional fields may be added (?occ_search and http://www.gbif.org/developer/occurrence#parameters)
+sp.data <- occ_search(scientificName = paste(sp.target), hasCoordinate = TRUE, basisOfRecord = "HUMAN_OBSERVATION", geometry = wkt, year = paste(yr.start,",",yr.end,sep=""), hasGeospatialIssue = FALSE, limit = 1000, start = 0, fields=c('scientificName','decimalLatitude','decimalLongitude','year','month','day'), return = "data")
+sp.data <- as.data.table(sp.data)
+
+#Download background species data - setup parallel data retrieval workers (split over multiple years to reduce server load and address server allowances (i.e. multiple queries originating from identical IP address)) - capped at 200,000 we set the limit to 10,000 x 15 years = 150,000
+# registerDoMC(detectCores() - 1)
+# 
+# raw.sp.data <- foreach(i = c(yr.start:yr.end), .packages = c("rgbif", "doMC"), combine = rbind) %dopar% {
+#   temp <- occ_search(scientificName = NULL, hasCoordinate = TRUE, basisOfRecord = "HUMAN_OBSERVATION", geometry = wkt, year = i, hasGeospatialIssue = FALSE, limit = 10000, start = 0, fields=c('scientificName','classKey','decimalLatitude','decimalLongitude','year','month','day'), return = "data")
+#   temp
+# }
+# save(raw.sp.data, file = "data/raw_sp_data_gbif") #Store a copy since the query can be quite time consuming (10+ minutes)...
+#load("raw_sp_data_gbif") #Load saved copy of data - alternative method is to save R workspace...
+
+#Combine all background data into single table
+# all.sp.data <- data.table()
+# for (i in 1:length(raw.sp.data)){
+#   all.sp.data <- rbind(all.sp.data,raw.sp.data[[i]])
+# }
+
+#Sort and group records by time and location of observations to determine sites with multiple species surveys
+#setkey(all.sp.data,year,month,day,decimalLongitude,decimalLatitude,scientificName,classKey)
+
+#sites.spp <- all.sp.data[,c("MULT" = length(unique(scientificName))>1 & length(unique(classKey))>1, "TOTAL" = .N, "SPP" = list(paste(unique(scientificName),collapse=", "))), by="decimalLongitude,decimalLatitude,year,month,day"]
+
+#sites.tax <- sites.spp[MULT == TRUE]
+
+#Construct species datsets using reported target species locations as presences (1's) and sites where multiple species were observed excluding target species as background (0's)
+sites.1 <- sp.data[, .N, by="decimalLongitude,decimalLatitude"]
+#sites.0 <- sites.tax[!like(SPP,sp.target)]
+x1 <- cbind(sites.1[,.("LON"=decimalLongitude,"LAT"=decimalLatitude)],"OCC"=rep(1,nrow(sites.1)))
+#x0 <- cbind(sites.0[,.("LON"=decimalLongitude,"LAT"=decimalLatitude)],"OCC"=rep(0,nrow(sites.0)))
+#sp.model.data <- rbind(x1,x0)
+#write.table(sp.model.data, file = "sp_model_data_ll.csv", row.names=FALSE, col.names=TRUE, sep=",")
+
+#Optional conversion to projected coordinates for use in SDMs which sample from environmental covariate grids
+coord.sys <- CRS("+init=epsg:3157") #Selected California NAD83 Zone 10 UTM
+
+ll <- SpatialPoints(x1[,.(LON,LAT)], proj4string=CRS("+init=epsg:4269"))
+UTM <- data.frame(spTransform(ll, coord.sys))
+names(UTM) <- c('X','Y')
+data1 <- as.data.table(cbind(UTM,"OCC"=x1[,OCC]))
+
+deer.data <- rbind(data1,data0)
+
+#Sample covariate grid values at all egk coordinates
+samples.df <- extract(vars,deer.data[,.(X,Y)])
+
+#Build modelling dataset
+final.data <- cbind(deer.data,samples.df)
+
+#Remove any records with missing information - occurs where sampling detected NAs in grids
+final.data <- na.omit(final.data)
+
+
+write.table(final.data, file = "data/cal_model_data_sdm.csv", row.names=FALSE, col.names=TRUE, sep=",")
