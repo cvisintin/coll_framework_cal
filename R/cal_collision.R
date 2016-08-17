@@ -71,21 +71,22 @@ summary(coll.glm)  #Examine fit of regression model
 
 paste("% Deviance Explained: ",round(((coll.glm$null.deviance - coll.glm$deviance)/coll.glm$null.deviance)*100,2),sep="")  #Report reduction in deviance
 
-write.csv(signif(summary(coll.glm)$coefficients, digits=4),"output/vic_coll_coef.csv",row.names=FALSE)
+write.csv(signif(summary(coll.glm)$coefficients, digits=4),"output/cal_coll_coef.csv",row.names=FALSE)
 
-write.csv(formatC(anova(coll.glm)[2:4,2]/sum(anova(coll.glm)[2:4,2]), format='f',digits=4),"output/vic_coll_anova.csv",row.names=FALSE)
+write.csv(formatC(anova(coll.glm)[2:4,2]/sum(anova(coll.glm)[2:4,2]), format='f',digits=4),"output/cal_coll_anova.csv",row.names=FALSE)
 
-save(coll.glm,file="output/vic_coll_glm")
+save(coll.glm,file="output/cal_coll_glm")
 
-save(model.data,file="output/vic_coll_model_data")
+save(model.data,file="output/cal_coll_model_data")
 
 coll.preds <- predict(coll.glm, cov.data, type="response")
 
 coll.preds.df <- cbind("uid"=cov.data$uid,"collrisk"=coll.preds) #Combine predictions with unique IDs for all road segments
 coll.preds.df <- na.omit(coll.preds.df)
 
-write.csv(coll.preds.df, file = "output/vic_coll_preds_glm.csv", row.names=FALSE)
+write.csv(coll.preds.df, file = "output/cal_coll_preds_glm.csv", row.names=FALSE)
 
+dbWriteTable(con, c("gis_california", "cal_nogeom_roads_deercollrisk"), value = coll.preds.df, row.names=FALSE)
 
 # coll.ind <- as.data.table(dbGetQuery(con,"
 #   SELECT DISTINCT ON (p.id)
