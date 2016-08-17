@@ -81,7 +81,7 @@ save(model.data,file="output/cal_coll_model_data")
 
 coll.preds <- predict(coll.glm, cov.data, type="response")
 
-coll.preds.df <- cbind("uid"=cov.data$uid,"collrisk"=coll.preds) #Combine predictions with unique IDs for all road segments
+coll.preds.df <- as.data.table(cbind("uid"=cov.data$uid,"collrisk"=coll.preds)) #Combine predictions with unique IDs for all road segments
 coll.preds.df <- na.omit(coll.preds.df)
 
 write.csv(coll.preds.df, file = "output/cal_coll_preds_glm.csv", row.names=FALSE)
