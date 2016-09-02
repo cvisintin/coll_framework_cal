@@ -2,6 +2,7 @@ require(RPostgreSQL)
 require(data.table)
 require(raster)
 require(boot)
+require(doMC)
 
 drv <- dbDriver("PostgreSQL")  #Specify a driver for postgreSQL type database
 con <- dbConnect(drv, dbname="qaeco_spatial", user="qaeco", password="Qpostgres15", host="boab.qaeco.com", port="5432")  #Connection to database server on Boab
@@ -60,6 +61,59 @@ setkey(coll,uid)
 data1 <- merge(cov.data, coll)
 
 set.seed(123)
+
+##########Added code for 1000 simulations and model averaging#############
+rns <- sample(1:10000, 1000, replace=F)
+
+models1000 <- foreach(i = 1:length(rns), .combine=rbind, .export="roc") %dopar% {
+  set.seed(rns[i])
+  data0 <- cbind(cov.data[sample(seq(1:nrow(cov.data)),2*nrow(data1)),],"coll"=rep(0,2*nrow(data1)))
+  model.data <- rbind(data1,data0)
+  model.data <- na.omit(model.data)
+  coll.glm <- glm(formula = coll ~ log(deer) + log(tvol) + I(log(tvol)^2) + log(tspd), family=binomial(link = "cloglog"), data = model.data)
+  coefs <- as.numeric(coll.glm$coefficients)
+  devred <- round(((coll.glm$null.deviance - coll.glm$deviance)/coll.glm$null.deviance)*100,2)
+  rocvalue <- roc(model.data$coll,coll.glm$fitted.values)
+  c(coefs, devred, rocvalue)
+}
+
+invcloglog <- function (x) {1-exp(-exp(x))}
+
+occ <- NULL
+
+occ <- foreach(i = 1:length(rns), .combine=rbind, .export="roc") %dopar% {
+  set.seed(rns[i])
+  data0 <- cbind(cov.data[sample(seq(1:nrow(cov.data)),2*nrow(data1)),],"coll"=rep(0,2*nrow(data1)))
+  model.data <- rbind(data1,data0)
+  model.data <- na.omit(model.data)
+  coll.glm <- glm(formula = coll ~ log(deer) + log(tvol) + I(log(tvol)^2) + log(tspd), family=binomial(link = "cloglog"), data = model.data)
+  data.frame(x=model.data[,deer], y=invcloglog(cbind(1,log(model.data[,deer]),mean(log(model.data[,tvol])),mean((log(model.data[,tvol]))*(log(model.data[,tvol]))),mean(log(model.data[,tspd]))) %*% coef(coll.glm)), col=rep(i, each=length(model.data[,deer])))
+}
+
+tiff('figs/occ.tif', pointsize = 8, compression = "lzw", res=300, width = 1100, height = 900)
+ggplot(occ,aes(x=x,y=y,group=col)) +
+  geom_line(size=0.3) +
+  ylab("Likelihood of Collision") +
+  xlab("Likelihood of Species Occurrence") +
+  theme(legend.position="none") +
+  #labs(color = "Species") +
+  theme_bw() +
+  theme(legend.key = element_blank()) +
+  theme(plot.margin=unit(c(.5,0,.1,.1),"cm")) +
+  theme(axis.title.x = element_text(margin=unit(c(.3,0,0,0),"cm"))) +
+  theme(axis.title.y = element_text(margin=unit(c(0,.3,0,0),"cm"))) +
+  theme(panel.grid.major = element_line(size=0.1),panel.grid.minor = element_line(size=0.1)) +
+  #scale_colour_manual(values=plotPal) +
+  theme(text = element_text(size = 8)) +
+  scale_x_continuous(breaks=seq(0,1,by=.1), expand = c(0, 0), lim=c(0,1)) +
+  scale_y_continuous(breaks=seq(0,1,by=.1), expand = c(0, 0), lim=c(0,1)) #+
+#guides(colour=FALSE)
+dev.off()
+
+
+
+#########################################################################
+
 data0 <- cbind(cov.data[sample(seq(1:nrow(cov.data)),2*nrow(data1)),],"coll"=rep(0,2*nrow(data1)))
 
 model.data <- rbind(data1,data0)
