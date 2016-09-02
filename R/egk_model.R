@@ -50,3 +50,9 @@ writeRaster(brt.preds, filename="output/egk_preds_brt.tif", format="GTiff", over
 #system("raster2pgsql -d -I -M -s 28355 -t auto /home/casey/Research/Github/coll_framework_egk/output/egk_preds_brt.tif gis_victoria.vic_gda9455_grid_egk_preds_brt | PGPASSWORD=Qpostgres15 psql -d qaeco_spatial -h boab.qaeco.com -p 5432 -U qaeco -w")
 
 plot(brt.preds, col=sdm.colors(100)) #Plot prediction map using red to white color scheme
+
+#Calculate spatial autocorrelation in model residuals and create dataframe
+cor <- correlog(model.data[,1], model.data[,2], resid(kang.brt), increment=1000, resamp=0, latlon=FALSE)
+vic.cor.df <- data.frame(x=as.numeric(names(cor$correlation[2:20])), y=cor$correlation[2:20])
+
+save(vic.cor.df,file="output/vic_brt_cor")

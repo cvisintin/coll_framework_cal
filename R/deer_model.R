@@ -61,10 +61,12 @@ plot(brt.preds, col=sdm.colors(100))
 
 #Calculate spatial autocorrelation in model residuals and create dataframe
 cor <- correlog(model.data[,1], model.data[,2], resid(deer.brt), increment=1000, resamp=0, latlon=FALSE)
-cor.df <- data.frame(x=as.numeric(names(cor$correlation[2:20])), y=cor$correlation[2:20])
+cal.cor.df <- data.frame(x=as.numeric(names(cor$correlation[2:20])), y=cor$correlation[2:20])
+
+save(cal.cor.df,file="output/cal_brt_cor")
 
 #Plot first 20 kms in 1 km bins
-ggplot(cor.df,aes(x=x,y=y)) + 
+ggplot(cal.cor.df,aes(x=x,y=y)) + 
   geom_line(colour=c("grey70"),size=1) + 
   ylab("Moran's I") + 
   xlab("Distance (km)") + 
