@@ -60,6 +60,33 @@ setkey(coll,uid)
 data1 <- merge(cov.data, coll)
 
 set.seed(123)
+
+##########Added code for 1000 simulations and model averaging#############
+rns <- sample(1:10000, 1000, replace=F)
+
+models1000 <- foreach(i = 1:length(rns)) %do% {
+  set.seed(rns[i])
+  data0 <- cbind(cov.data[sample(seq(1:nrow(cov.data)),2*nrow(data1)),],"coll"=rep(0,2*nrow(data1)))
+  model.data <- rbind(data1,data0)
+  model.data <- na.omit(model.data)
+  coll.glm <- glm(formula = coll ~ log(egk) + log(tvol) + I(log(tvol)^2) + log(tspd), family=binomial(link = "cloglog"), data = model.data)
+  list("coefs"=coef(summary(coll.glm))[, "Estimate"],
+       "coefs_se"=coef(summary(coll.glm))[, "Std. Error"],
+       "coefs_prz"=coef(summary(coll.glm))[, "Pr(>|z|)"],
+       "devred"=round(((coll.glm$null.deviance - coll.glm$deviance)/coll.glm$null.deviance)*100,2),
+       "rocvalue"=roc(model.data$coll,coll.glm$fitted.values)
+  )
+}
+save(models1000,file="output/vic_coll_glm_1000")
+
+mean(sapply(models1000, function(x){x[["devred"]]}))
+sd(sapply(models1000, function(x){x[["devred"]]}))
+
+mean(sapply(models1000, function(x){x[["rocvalue"]]}))
+sd(sapply(models1000, function(x){x[["rocvalue"]]}))
+
+#########################################################################
+
 data0 <- cbind(cov.data[sample(seq(1:nrow(cov.data)),2*nrow(data1)),],"coll"=rep(0,2*nrow(data1)))
 
 model.data <- rbind(data1,data0)
