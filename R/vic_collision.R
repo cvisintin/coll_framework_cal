@@ -74,7 +74,8 @@ models1000 <- foreach(i = 1:length(rns)) %do% {
        "coefs_se"=coef(summary(coll.glm))[, "Std. Error"],
        "coefs_prz"=coef(summary(coll.glm))[, "Pr(>|z|)"],
        "devred"=round(((coll.glm$null.deviance - coll.glm$deviance)/coll.glm$null.deviance)*100,2),
-       "rocvalue"=roc(model.data$coll,coll.glm$fitted.values)
+       "rocvalue"=roc(model.data$coll,coll.glm$fitted.values),
+       "data"=model.data
   )
 }
 save(models1000,file="output/vic_coll_glm_1000")
