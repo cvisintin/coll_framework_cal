@@ -1,3 +1,5 @@
+require(ggplot2)
+
 load("output/vic_brt_cor")
 load("output/cal_brt_cor")
 
