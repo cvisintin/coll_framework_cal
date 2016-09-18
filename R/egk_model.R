@@ -33,6 +33,7 @@ sdm.colors = colorRampPalette(c("white","red")) #Define color scheme for plottin
 set.seed(123) #Set random seed to make results of gradient boosted regressions identical for each run
 
 kang.brt = gbm.step(data = model.data, gbm.x = 4:10, gbm.y = 3, family = "bernoulli", tree.complexity = 5, learning.rate = 0.005, bag.fraction = 0.5) #Create boosted regression tree model
+save(kang.brt,file="output/vic_brt")
 
 #Report reduction in deviance on null model (percent of error explained by model)
 brt.devexp <- paste(round(((kang.brt[["self.statistics"]][["mean.null"]] - kang.brt[["cv.statistics"]][["deviance.mean"]])/kang.brt[["self.statistics"]][["mean.null"]])*100,2)," +/- ",round((kang.brt[["cv.statistics"]][["deviance.se"]]/kang.brt[["self.statistics"]][["mean.null"]])*100,2),sep="")
