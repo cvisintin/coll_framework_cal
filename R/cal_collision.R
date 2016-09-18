@@ -73,19 +73,34 @@ models1000 <- foreach(i = 1:length(rns)) %do% {
   coll.glm <- glm(formula = coll ~ log(deer) + log(tvol) + I(log(tvol)^2) + log(tspd), family=binomial(link = "cloglog"), data = model.data)
   list("coefs"=coef(summary(coll.glm))[, "Estimate"],
        "coefs_se"=coef(summary(coll.glm))[, "Std. Error"],
+       "zvalue"=coef(summary(coll.glm))[, "z value"],
        "coefs_prz"=coef(summary(coll.glm))[, "Pr(>|z|)"],
        "devred"=round(((coll.glm$null.deviance - coll.glm$deviance)/coll.glm$null.deviance)*100,2),
        "rocvalue"=roc(model.data$coll,coll.glm$fitted.values),
-       "data"=model.data
+       "data"=model.data,
+       "nbg"=length(model.data$coll[model.data$coll==0])
   )
 }
 save(models1000,file="output/cal_coll_glm_1000")
+
+mean(sapply(models1000, function(x){x[["nbg"]]}))
+sd(sapply(models1000, function(x){x[["nbg"]]}))
 
 mean(sapply(models1000, function(x){x[["devred"]]}))
 sd(sapply(models1000, function(x){x[["devred"]]}))
 
 mean(sapply(models1000, function(x){x[["rocvalue"]]}))
 sd(sapply(models1000, function(x){x[["rocvalue"]]}))
+
+summary1000 <- matrix(NA, nrow=5, ncol=4)
+
+for(i in 1:nrow(summary1000)){
+  summary1000[i,1] <- paste0(formatC(signif(mean(sapply(models1000, function(x){x[["coefs"]][i]})),digits=3), digits=3, format="fg", flag="#"))#, " (s.d. ", round(sd(sapply(models1000, function(x){x[["coefs"]][i]})),2), ")")
+  summary1000[i,2] <- paste0(formatC(signif(mean(sapply(models1000, function(x){x[["coefs_se"]][i]})),digits=3), digits=3, format="fg", flag="#"))#, " (s.d. ", round(sd(sapply(models1000, function(x){x[["coefs_se"]][i]})),2), ")")
+  summary1000[i,3] <- paste0(formatC(signif(mean(sapply(models1000, function(x){x[["zvalue"]][i]})),digits=3), digits=3, format="fg", flag="#"))#, " (s.d. ", round(sd(sapply(models1000, function(x){x[["zvalue"]][i]})),2), ")")
+  summary1000[i,4] <- paste0(signif(mean(sapply(models1000, function(x){x[["coefs_prz"]][i]})),3))#, " (s.d. ", round(sd(sapply(models1000, function(x){x[["coefs_prz"]][i]})),2), ")")
+}
+write.csv(summary1000, file = "output/cal_coll_glm_fit.csv", row.names=FALSE)
 
 preds1000 <- matrix(0, nrow=length(cov.data$uid), ncol=length(rns)+1)
 preds1000[,1] <- cov.data$uid
