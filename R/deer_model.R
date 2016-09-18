@@ -30,6 +30,10 @@ vars <- stack(mget(grid.names)) #Combine all maps to single stack
 #Read in modelling dataset
 model.data <- read.csv("data/cal_model_data_sdm.csv", header=T, sep=",")
 
+length(model.data$OCC[model.data$OCC==1])
+
+length(model.data$OCC[model.data$OCC==0])
+
 #Define color scheme for plotting
 sdm.colors = colorRampPalette(c("white","red"))
 
