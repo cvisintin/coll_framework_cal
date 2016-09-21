@@ -26,7 +26,7 @@ vars <- stack(mget(grid.names)) #Combine all maps to single stack
 data0 <- read.csv("data/vic_bg_data_pts.csv")
 
 data1 <- dbGetQuery(con,paste0("
-      SELECT DISTINCT
+      SELECT DISTINCT ON (pts.geom)
         ST_X(pts.geom) AS X, ST_Y(pts.geom) AS Y, CAST(1 AS INTEGER) AS OCC
       FROM
         gis_victoria.vic_gda9455_fauna_vba AS pts, gis_victoria.vic_gda9455_admin_state AS poly
@@ -35,9 +35,7 @@ data1 <- dbGetQuery(con,paste0("
       AND
         pts.start_year >= '2000'
       AND
-        sci_name = 'Macropus giganteus'
-      GROUP BY
-        pts.geom;
+        sci_name = 'Macropus giganteus';
   "))
 
 colnames(data1) <- toupper(colnames(data1))
