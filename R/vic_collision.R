@@ -40,12 +40,30 @@ sdm.preds <- raster("output/egk_preds_brt.tif")
 
 cov.data$egk <- raster::extract(sdm.preds,cov.data[,.(x,y)])
 
+# coll <- as.data.table(dbGetQuery(con,"
+#   SELECT DISTINCT ON (p.id)
+#     r.uid AS uid, CAST(1 AS INTEGER) AS coll
+# 	FROM
+#     gis_victoria.vic_gda9455_roads_state as r,
+#       (SELECT
+#         id, geom
+#       FROM
+#         gis_victoria.vic_gda9455_fauna_wv
+#       WHERE
+#         species = 'Kangaroo -  Eastern Grey'
+#       AND
+#         cause = 'hit by vehicle') AS p
+#   WHERE ST_DWithin(p.geom,r.geom,100)
+#   ORDER BY p.id, ST_Distance(p.geom,r.geom)
+#   "))
+# setkey(coll,uid)
+
 coll <- as.data.table(dbGetQuery(con,"
   SELECT DISTINCT ON (p.id)
     r.uid AS uid, CAST(1 AS INTEGER) AS coll
 	FROM
     gis_victoria.vic_gda9455_roads_state as r,
-      (SELECT
+      (SELECT DISTINCT ON (geom)
         id, geom
       FROM
         gis_victoria.vic_gda9455_fauna_wv
@@ -57,6 +75,93 @@ coll <- as.data.table(dbGetQuery(con,"
   ORDER BY p.id, ST_Distance(p.geom,r.geom)
   "))
 setkey(coll,uid)
+
+# coll <- as.data.table(dbGetQuery(con,"
+#   SELECT DISTINCT ON (p.id)
+#     r.uid AS uid, CAST(1 AS INTEGER) AS coll
+# 	FROM
+#     gis_victoria.vic_gda9455_roads_state as r,
+#       (SELECT DISTINCT ON (grid_location)
+#         g.id AS id, g.geom AS geom
+#       FROM
+#         (SELECT id, geom, st_snapToGrid(geom, 5, 5) AS grid_location
+#         FROM
+#           gis_victoria.vic_gda9455_fauna_wv
+#         WHERE
+#           species = 'Kangaroo -  Eastern Grey'
+#         AND
+#           cause = 'hit by vehicle'
+#         ORDER BY grid_location) as g) AS p
+#   WHERE ST_DWithin(p.geom,r.geom,100)
+#   ORDER BY p.id, ST_Distance(p.geom,r.geom)
+#   "))
+# setkey(coll,uid)
+
+# create table dups as
+# select t1.*, st_centroid(st_union(t1.geom, t2.geom)) as cent_geom
+# from (SELECT
+#       id, geom
+#       FROM
+#       gis_victoria.vic_gda9455_fauna_wv
+#       WHERE
+#       species = 'Kangaroo -  Eastern Grey'
+#       AND
+#       cause = 'hit by vehicle') as t1 join (SELECT
+#                                             id, geom
+#                                             FROM
+#                                             gis_victoria.vic_gda9455_fauna_wv
+#                                             WHERE
+#                                             species = 'Kangaroo -  Eastern Grey'
+#                                             AND
+#                                             cause = 'hit by vehicle') as t2 on st_dwithin(t1.geom, t2.geom, 1000)
+# where t1.id != t2.id;
+# 
+# --table of no duplicates
+# create table no_dups as select x.*
+#   from (SELECT
+#         id, geom
+#         FROM
+#         gis_victoria.vic_gda9455_fauna_wv
+#         WHERE
+#         species = 'Kangaroo -  Eastern Grey'
+#         AND
+#         cause = 'hit by vehicle') as x left join dups on x.id = dups.id
+# where dups.id is null;
+# 
+# --insert distinct duplicates
+# insert into no_dups
+# select distinct on (cent_geom) id, geom
+# from dups;
+# 
+# select * from no_dups
+# order by id;
+
+# coll <- as.data.table(dbGetQuery(con,"
+# SELECT
+#   y.uid AS uid, CAST(1 AS INTEGER) AS coll
+# FROM
+#   (SELECT DISTINCT ON (p.id)
+#     p.geom AS geom, r.uid AS uid
+#   FROM
+#     gis_victoria.vic_gda9455_roads_state as r,
+#     (SELECT
+#       id, geom
+#     FROM
+#       gis_victoria.vic_gda9455_fauna_wv
+#     WHERE
+#       species = 'Kangaroo -  Eastern Grey'
+#     AND
+#       cause = 'hit by vehicle') AS p
+#   WHERE
+#     ST_DWithin(p.geom,r.geom,100)
+#   ORDER BY
+#     p.id, ST_Distance(p.geom,r.geom)) AS y,
+#   gis_victoria.vic_gda9455_admin_state_1kmgrid AS x
+# WHERE
+#   ST_Intersects(y.geom,x.geom)
+# GROUP BY x.id, y.geom, y.uid
+#   "))
+# setkey(coll,uid)
 
 data1 <- merge(cov.data, coll)
 
@@ -117,7 +222,7 @@ coll.preds.df <- data.frame("uid"=cov.data$uid,"collrisk"=rowMeans(preds1000[,2:
 
 #write.csv(coll.preds.df, file = "output/vic_coll_preds_glm.csv", row.names=FALSE)
 
-dbWriteTable(con, c("gis_victoria", "vic_nogeom_roads_egkcollrisk_m"), value = coll.preds.df, row.names=FALSE)
+dbWriteTable(con, c("gis_victoria", "vic_nogeom_roads_egkcollrisk_m"), value = coll.preds.df, row.names=FALSE, overwrite=TRUE)
 
 #########################################################################
 

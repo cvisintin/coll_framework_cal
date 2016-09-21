@@ -45,7 +45,7 @@ coll <- as.data.table(dbGetQuery(con,"
     r.uid AS uid, CAST(1 AS INTEGER) AS coll
 	FROM
     gis_california.cal_nad8310_roads_study as r,
-      (SELECT
+      (SELECT DISTINCT ON (geom)
         id, geom
       FROM
         gis_california.cal_nad8310_fauna_cros
@@ -117,7 +117,7 @@ coll.preds.df <- data.frame("uid"=cov.data$uid,"collrisk"=rowMeans(preds1000[,2:
 
 #write.csv(coll.preds.df, file = "output/cal_coll_preds_glm.csv", row.names=FALSE)
 
-dbWriteTable(con, c("gis_california", "cal_nogeom_roads_deercollrisk_m"), value = coll.preds.df, row.names=FALSE)
+dbWriteTable(con, c("gis_california", "cal_nogeom_roads_deercollrisk_m"), value = coll.preds.df, row.names=FALSE, overwrite=TRUE)
 
 #########################################################################
 
