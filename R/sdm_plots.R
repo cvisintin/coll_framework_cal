@@ -46,24 +46,23 @@ ggplot(elev,aes(x=x,y=y)) +
   scale_x_continuous(expand = c(0, 0), lim=c(0,1000))
 dev.off()
 
-#plot effect of precipitation of driest month for kangaroos
-precdm <- plot.gbm(kang.brt, i.var="PRECDM",return.grid=TRUE, type="response")
-colnames(precdm) <- c("x","y")
+#plot effect of vegetation greenness for kangaroos
+green <- plot.gbm(kang.brt, i.var="GREEN",return.grid=TRUE, type="response")
+colnames(green) <- c("x","y")
 
-tiff('figs/vic_precdm.tif', pointsize = 11, compression = "lzw", res=300, width = 900, height = 900)
-ggplot(precdm,aes(x=x,y=y)) + 
+tiff('figs/vic_green.tif', pointsize = 11, compression = "lzw", res=300, width = 900, height = 900)
+ggplot(green,aes(x=x,y=y)) + 
   geom_line(size=0.3) + 
   ylab("Occurence (Pr)") + 
-  xlab("Precipitation of Driest Month (mm)") + 
-  labs(color = "Species") + 
+  xlab("Seasonal Change in Vegetation Greenness") + 
   theme_bw() + 
-  theme(legend.key = element_blank(), legend.position="none") + 
+  theme(legend.key = element_blank()) +
   theme(plot.margin=unit(c(.5,.8,.1,.1),"cm")) +
   theme(axis.title.x = element_text(margin=unit(c(.3,0,0,0),"cm"))) +
   theme(axis.title.y = element_text(margin=unit(c(0,.3,0,0),"cm"))) +
   theme(panel.grid.major = element_line(size=0.1),panel.grid.minor = element_line(size=0.1)) +
   theme(text = element_text(size = 10)) +
-  scale_x_continuous(expand = c(0, 0), lim=c(20,60))
+  scale_x_continuous(expand = c(0, 0), lim=c(-0.1,0.5))
 dev.off()
 
 
