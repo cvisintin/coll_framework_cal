@@ -6,6 +6,41 @@ require(rgeos)
 require(rgbif)
 require(raster)
 require(RPostgreSQL)
+require(fields)
+
+thin.algorithm <- function (rec.df.orig, thin.par, reps) 
+{
+  reduced.rec.dfs <- list()
+  for (Rep in 1:reps) {
+    rec.df <- rec.df.orig
+    DistMat <- rdist(x1 = rec.df)
+    diag(DistMat) <- NA
+    while (min(DistMat, na.rm = TRUE) < thin.par & nrow(rec.df) > 
+           1) {
+      CloseRecs <- which(DistMat < thin.par, arr.ind = TRUE)[, 
+                                                             1]
+      RemoveRec <- as.numeric(names(which(table(CloseRecs) == 
+                                            max(table(CloseRecs)))))
+      if (length(RemoveRec) > 1) {
+        RemoveRec <- sample(RemoveRec, 1)
+      }
+      rec.df <- rec.df[-RemoveRec, ]
+      DistMat <- DistMat[-RemoveRec, -RemoveRec]
+      if (length(DistMat) == 1) {
+        break
+      }
+    }
+    colnames(rec.df) <- c("x", "y")
+    reduced.rec.dfs[[Rep]] <- rec.df
+  }
+  locs.thinned <- reduced.rec.dfs
+  y.x.thin.count <- unlist(lapply(locs.thinned, nrow))
+  max.thin.recs <- max(y.x.thin.count)
+  df.temp <- locs.thinned[[which(y.x.thin.count == max.thin.recs)[1]]]
+  colnames(df.temp) <- colnames(rec.df.orig)
+  
+  return(df.temp)
+}
 
 drv <- dbDriver("PostgreSQL")  #Specify a driver for postgreSQL type database
 con <- dbConnect(drv, dbname="qaeco_spatial", user="qaeco", password="Qpostgres15", host="boab.qaeco.com", port="5432")  #Connection to database server on Boab
@@ -19,6 +54,12 @@ cal.rst.study <- raster("data/grids/cal/CAL_NAD8310_GRID_STUDY_1000.tif")
 clip.study <- extent(445000,1165000,3962000,4329000) #Define clipping extent of maps
 #clip.state <- extent(374000,1318000,3613000,4654000)
 
+X <- Y <- cal.rst.study
+Y[] <- yFromCell(cal.rst.study, 1:ncell(cal.rst.study))/1000000
+Y <- crop(Y,clip.study) * cal.rst.study
+X[] <- xFromCell(cal.rst.study, 1:ncell(cal.rst.study))/1000000
+X <- crop(X,clip.study) * cal.rst.study
+
 #Read in grids, crop, and multiply with template to create consistent covariate maps
 for (i in 1:length(grid.files)) {
   temp <- raster(paste0("data/grids/cal/envi/",grid.files[i]))
@@ -27,10 +68,10 @@ for (i in 1:length(grid.files)) {
   temp <- crop(temp, clip.study)
   assign(grid.names[i],temp * cal.rst.study)
 }
-vars <- stack(mget(grid.names)) #Combine all maps to single stack
+vars <- stack(c(mget(grid.names),"X"=X,"Y"=Y)) #Combine all maps to single stack
+save(vars,file="data/cal_study_vars")
 
 data0 <- read.csv("data/cal_study_bg_data_pts.csv")
-#data0 <- read.csv("data/cal_bg_data_pts.csv")
 
 #Specify study boundary for species records query
 # boundary <- readShapePoly("data/grids/cal/CAL_NAD83LL_ADMIN_STATE_SIMPLE.shp") #California shapefile for query boundary (projected in NAD83 (EPSG:4269))
@@ -112,12 +153,18 @@ coord.sys <- CRS("+init=epsg:3157") #Selected California NAD83 Zone 10 UTM
 ll <- SpatialPoints(x1[,.(LON,LAT)], proj4string=CRS("+init=epsg:4269"))
 UTM <- data.frame(spTransform(ll, coord.sys))
 names(UTM) <- c('X','Y')
-data1 <- as.data.table(cbind(UTM,"OCC"=x1[,OCC]))
 
-deer.data <- rbind(data1,data0)
+#data1 <- as.data.table(cbind(UTM,"OCC"=x1[,OCC]))
+#deer.data <- rbind(data1,data0)
+
+data1.1 <- thin.algorithm(UTM, 1000, 50)
+data1.1 <- as.data.table(cbind(data1.1,"OCC"=1))
+
+deer.data <- rbind(data1.1,data0)
+colnames(deer.data)[1:2] <- c("XCOORD","YCOORD")
 
 #Sample covariate grid values at all egk coordinates
-samples.df <- extract(vars,deer.data[,.(X,Y)])
+samples.df <- extract(vars,deer.data[,.(XCOORD,YCOORD)])
 
 #Build modelling dataset
 final.data <- cbind(deer.data,samples.df)
