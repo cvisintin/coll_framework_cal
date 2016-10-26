@@ -2,23 +2,37 @@ require(ggplot2)
 require(reshape2)
 require(foreach)
 
-load("output/vic_coll_glm_1000")
+load("output/vic_coll_glm")
+load("output/vic_coll_model_data")
+load("output/vic_coll_cor_1000")
+load("output/vic_coll_cor_250")
 
-plotPal <- c("#94d1c7")
+#plotPal <- c("#94d1c7")
 
 invcloglog <- function (x) {1-exp(-exp(x))}
 
-occ <- foreach(i = 1:length(models1000), .combine=rbind) %do% {
-  data.frame(x=models1000[[i]][["data"]][["egk"]], y=invcloglog(cbind(1,log(models1000[[i]][["data"]][["egk"]]),mean(log(models1000[[i]][["data"]][["tvol"]])),mean((log(models1000[[i]][["data"]][["tvol"]]))*(log(models1000[[i]][["data"]][["tvol"]]))),mean(log(models1000[[i]][["data"]][["tspd"]]))) %*% models1000[[i]][["coefs"]]), col=rep(i, each=length(models1000[[i]][["data"]][["egk"]])))
-}
+# m.coef <- coef(coll.glm)
+# m.coef.ci <- confint.default(coll.glm)
+
+# occ <- data.frame(x=coll.glm[["data"]][["egk"]],
+#                   y=invcloglog(cbind(1,log(coll.glm[["data"]][["egk"]]),mean(log(coll.glm[["data"]][["tvol"]])),mean((log(coll.glm[["data"]][["tvol"]]))*(log(coll.glm[["data"]][["tvol"]]))),mean(log(coll.glm[["data"]][["tspd"]]))) %*% m.coef),
+#                   ymax=invcloglog(cbind(1,log(coll.glm[["data"]][["egk"]]),mean(log(coll.glm[["data"]][["tvol"]])),mean((log(coll.glm[["data"]][["tvol"]]))*(log(coll.glm[["data"]][["tvol"]]))),mean(log(coll.glm[["data"]][["tspd"]]))) %*% c(m.coef[1],m.coef.ci[2,2],m.coef[3:5])),
+#                   ymin=invcloglog(cbind(1,log(coll.glm[["data"]][["egk"]]),mean(log(coll.glm[["data"]][["tvol"]])),mean((log(coll.glm[["data"]][["tvol"]]))*(log(coll.glm[["data"]][["tvol"]]))),mean(log(coll.glm[["data"]][["tspd"]]))) %*% c(m.coef[1],m.coef.ci[2,1],m.coef[3:5]))
+#                   )
+
+occ.range <- seq(0,1,1/(nrow(data)+1))[-c(1,length(seq(0,1,1/(nrow(data)+1))))]
+
+occ.fit <- predict.glm(coll.glm,data.frame(egk=occ.range,tvol=mean(data$tvol),tspd=mean(data$tspd)),type="response",se.fit=TRUE)
+occ <- data.frame(x=occ.range,y=occ.fit[["fit"]],ymin=occ.fit[["fit"]]-1.96*occ.fit[["se.fit"]],ymax=occ.fit[["fit"]]+1.96*occ.fit[["se.fit"]])
 
 tiff('figs/vic_occ.tif', pointsize = 12, compression = "lzw", res=300, width = 900, height = 900)
-ggplot(occ, aes(x=x,y=y,group=col)) +
-  geom_line(size=0.2, col=plotPal, alpha=0.1) +
+ggplot(occ, aes(x=x,y=y,ymin=ymin,ymax=ymax)) +
+  geom_line(size=0.3) +
+  geom_ribbon(alpha=0.3) +
   #geom_smooth(size=0.8, se=FALSE, col="black", aes(group=1), n=10000) +
   ylab("Likelihood of Collision") +
   xlab("Likelihood of Species Occurrence") +
-  theme(legend.position="none") +
+  #theme(legend.position="none") +
   theme_bw() +
   theme(legend.key = element_blank()) +
   theme(plot.margin=unit(c(.5,.5,.1,.1),"cm")) +
@@ -26,19 +40,27 @@ ggplot(occ, aes(x=x,y=y,group=col)) +
   theme(axis.title.y = element_text(margin=unit(c(0,.3,0,0),"cm"))) +
   theme(panel.grid.major = element_line(size=0.1),panel.grid.minor = element_line(size=0.1)) +
   theme(text = element_text(size = 10)) +
-  scale_x_continuous(breaks=seq(0,1,by=.1), expand = c(0, 0), lim=c(0,1)) +
-  scale_y_continuous(breaks=seq(0,1,by=.1), expand = c(0, 0), lim=c(0,1)) #+
+  scale_x_continuous(breaks=seq(0,1,by=.1), expand = c(0, 0), lim=c(0,1)) #+
+  #scale_y_continuous(breaks=seq(0,.05,by=.005), expand = c(0, 0), lim=c(0,.05)) #+
   #guides(colour=FALSE)
 dev.off()
 
 
-tvol <- foreach(i = 1:length(models1000), .combine=rbind) %do% {
-  data.frame(x=models1000[[i]][["data"]][["tvol"]], y=invcloglog(cbind(1,mean(log(models1000[[i]][["data"]][["egk"]])),log(models1000[[i]][["data"]][["tvol"]]),(log(models1000[[i]][["data"]][["tvol"]]))*(log(models1000[[i]][["data"]][["tvol"]])),mean(log(models1000[[i]][["data"]][["tspd"]]))) %*% models1000[[i]][["coefs"]]), col=rep(i, each=length(models1000[[i]][["data"]][["tvol"]])))
-}
+# tvol <- data.frame(x=coll.glm[["data"]][["tvol"]],
+#                    y=invcloglog(cbind(1,mean(log(coll.glm[["data"]][["egk"]])),log(coll.glm[["data"]][["tvol"]]),(log(coll.glm[["data"]][["tvol"]]))*(log(coll.glm[["data"]][["tvol"]])),mean(log(coll.glm[["data"]][["tspd"]]))) %*% m.coef),
+#                    ymax=invcloglog(cbind(1,mean(log(coll.glm[["data"]][["egk"]])),log(coll.glm[["data"]][["tvol"]]),(log(coll.glm[["data"]][["tvol"]]))*(log(coll.glm[["data"]][["tvol"]])),mean(log(coll.glm[["data"]][["tspd"]]))) %*% c(m.coef[1:2],m.coef.ci[3,2],m.coef.ci[4,2],m.coef[5])),
+#                    ymin=invcloglog(cbind(1,mean(log(coll.glm[["data"]][["egk"]])),log(coll.glm[["data"]][["tvol"]]),(log(coll.glm[["data"]][["tvol"]]))*(log(coll.glm[["data"]][["tvol"]])),mean(log(coll.glm[["data"]][["tspd"]]))) %*% c(m.coef[1:2],m.coef.ci[3,1],m.coef.ci[4,1],m.coef[5]))
+#                    )
+
+tvol.range <- seq(0,40000,40000/(nrow(data)+1))[-c(1,length(seq(0,40000,40000/(nrow(data)+1))))]
+
+tvol.fit <- predict.glm(coll.glm,data.frame(egk=mean(data$egk),tvol=tvol.range,tspd=mean(data$tspd)),type="response",se.fit=TRUE)
+tvol <- data.frame(x=tvol.range,y=tvol.fit[["fit"]],ymin=tvol.fit[["fit"]]-1.96*tvol.fit[["se.fit"]],ymax=tvol.fit[["fit"]]+1.96*tvol.fit[["se.fit"]])
 
 tiff('figs/vic_tvol.tif', pointsize = 12, compression = "lzw", res=300, width = 900, height = 900)
-ggplot(tvol, aes(x=x/1000,y=y,group=col)) +
-  geom_line(size=0.2, col=plotPal, alpha=0.1) +
+ggplot(tvol, aes(x=x/1000,y=y,ymin=ymin,ymax=ymax)) +
+  geom_line(size=0.3) +
+  geom_ribbon(alpha=0.3) +
   #geom_smooth(size=0.8, se=FALSE, col="black", aes(group=1), n=10000) +
   ylab("Likelihood of Collision") +
   xlab("Traffic Volume (1000 vehicles/day)") +
@@ -50,20 +72,28 @@ ggplot(tvol, aes(x=x/1000,y=y,group=col)) +
   theme(axis.title.y = element_text(margin=unit(c(0,.3,0,0),"cm"))) +
   theme(panel.grid.major = element_line(size=0.1),panel.grid.minor = element_line(size=0.1)) +
   theme(text = element_text(size = 10)) +
-  scale_x_continuous(breaks=seq(0,25,by=5), expand = c(0, 0), lim=c(0,25)) +
-  scale_y_continuous(breaks=seq(0,1,by=.1), expand = c(0, 0), lim=c(0,1)) #+
+  scale_x_continuous(breaks=seq(0,40,by=5), expand = c(0, 0), lim=c(0,40)) #+
+  #scale_y_continuous(breaks=seq(0,.05,by=.005), expand = c(0, 0), lim=c(0,.05)) #+
   #guides(colour=FALSE)
 dev.off()
 
 
-tspd <- foreach(i = 1:length(models1000), .combine=rbind) %do% {
-  data.frame(x=models1000[[i]][["data"]][["tspd"]], y=invcloglog(cbind(1,mean(log(models1000[[i]][["data"]][["egk"]])),mean(log(models1000[[i]][["data"]][["tvol"]])),mean((log(models1000[[i]][["data"]][["tvol"]]))*(log(models1000[[i]][["data"]][["tvol"]]))),log(models1000[[i]][["data"]][["tspd"]])) %*% models1000[[i]][["coefs"]]), col=rep(i, each=length(models1000[[i]][["data"]][["tspd"]])))
-}
+# tspd <- data.frame(x=coll.glm[["data"]][["tspd"]],
+#                    y=invcloglog(cbind(1,mean(log(coll.glm[["data"]][["egk"]])),mean(log(coll.glm[["data"]][["tvol"]])),mean((log(coll.glm[["data"]][["tvol"]]))*(log(coll.glm[["data"]][["tvol"]]))),log(coll.glm[["data"]][["tspd"]])) %*% m.coef),
+#                    ymax=invcloglog(cbind(1,mean(log(coll.glm[["data"]][["egk"]])),mean(log(coll.glm[["data"]][["tvol"]])),mean((log(coll.glm[["data"]][["tvol"]]))*(log(coll.glm[["data"]][["tvol"]]))),log(coll.glm[["data"]][["tspd"]])) %*% c(m.coef[1:4],m.coef.ci[5,2])),
+#                    ymin=invcloglog(cbind(1,mean(log(coll.glm[["data"]][["egk"]])),mean(log(coll.glm[["data"]][["tvol"]])),mean((log(coll.glm[["data"]][["tvol"]]))*(log(coll.glm[["data"]][["tvol"]]))),log(coll.glm[["data"]][["tspd"]])) %*% c(m.coef[1:4],m.coef.ci[5,1]))
+#                    )
+
+tspd.range <- seq(40,110,70/(nrow(data)+1))[-c(1,length(seq(40,110,70/(nrow(data)+1))))]
+
+tspd.fit <- predict.glm(coll.glm,data.frame(egk=mean(data$egk),tvol=mean(data$tvol),tspd=tspd.range),type="response",se.fit=TRUE)
+tspd <- data.frame(x=tspd.range,y=tspd.fit[["fit"]],ymin=tspd.fit[["fit"]]-1.96*tspd.fit[["se.fit"]],ymax=tspd.fit[["fit"]]+1.96*tspd.fit[["se.fit"]])
 
 tiff('figs/vic_tspd.tif', pointsize = 12, compression = "lzw", res=300, width = 900, height = 900)
-ggplot(tspd, aes(x=x,y=y,group=col)) +
-  geom_line(size=0.2, col=plotPal, alpha=0.1) +
-  #geom_smooth(size=0.8, se=FALSE, col="black", aes(group=1), n=10000) +
+ggplot(tspd, aes(x=x,y=y,ymin=ymin,ymax=ymax)) +
+  geom_line(size=0.3) +
+  geom_ribbon(alpha=0.3) +
+  #geom_smooth(size=0.8, n=10000) +
   ylab("Likelihood of Collision") +
   xlab("Traffic Speed (km/hour)") +
   theme(legend.position="none") +
@@ -74,7 +104,43 @@ ggplot(tspd, aes(x=x,y=y,group=col)) +
   theme(axis.title.y = element_text(margin=unit(c(0,.3,0,0),"cm"))) +
   theme(panel.grid.major = element_line(size=0.1),panel.grid.minor = element_line(size=0.1)) +
   theme(text = element_text(size = 10)) +
-  scale_x_continuous(breaks=seq(40,110,by=10), expand = c(0, 0), lim=c(40,110)) +
-  scale_y_continuous(breaks=seq(0,1,by=.1), expand = c(0, 0), lim=c(0,1)) #+
+  scale_x_continuous(breaks=seq(40,110,by=10), expand = c(0, 0), lim=c(40,110)) #+
+  #scale_y_continuous(breaks=seq(0,.05,by=.005), expand = c(0, 0), lim=c(0,.05)) #+
   #guides(colour=FALSE)
+dev.off()
+
+
+
+tiff('figs/vic_coll_cor_1000.tif', pointsize = 12, compression = "lzw", res=300, width = 900, height = 900)
+ggplot(vic.cor.df.1000,aes(x=x,y=y,group=as.factor(n))) +
+  geom_line(colour=c("grey50"),size=0.2) +
+  #geom_point(size=1.0) +
+  ylab("Moran's I") +
+  xlab("Distance (km)") +
+  #labs(shape = "Random Draw") +
+  theme_bw() +
+  #theme(legend.key = element_blank()) +
+  #scale_shape_manual(values=shapes) +
+  geom_hline(aes(yintercept=0), linetype=2, size=0.3) +
+  theme(text = element_text(size = 10), axis.text=element_text(size=6)) +
+  #scale_y_continuous(breaks=seq(-1,1,by=.2), expand = c(0, 0), lim=c(-1,1)) +
+  scale_x_continuous(breaks=seq(1, 20, 1))
+dev.off()
+
+
+tiff('figs/vic_coll_cor_250.tif', pointsize = 12, compression = "lzw", res=300, width = 900, height = 900)
+ggplot(vic.cor.df.250,aes(x=x/4,y=y,group=as.factor(n))) +
+  geom_line(colour=c("grey50"),size=0.2) +
+  #geom_point(size=1.0) +
+  ylab("Moran's I") +
+  xlab("Distance (km)") +
+  #labs(shape = "Random Draw") +
+  theme_bw() +
+  #theme(legend.key = element_blank()) +
+  #scale_shape_manual(values=shapes) +
+  geom_hline(aes(yintercept=0), linetype=2, size=0.3) +
+  theme(text = element_text(size = 10), axis.text=element_text(size=6)) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 0)) +
+  #scale_y_continuous(breaks=seq(-1,1,by=.2), expand = c(0, 0), lim=c(-1,1)) +
+  scale_x_continuous(breaks=seq(.25, 5, .25))
 dev.off()
