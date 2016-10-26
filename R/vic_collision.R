@@ -7,6 +7,7 @@ require(fields)
 require(spatstat)
 require(maptools)
 require(ncf)
+require(caret)
 
 
 drv <- dbDriver("PostgreSQL")  #Specify a driver for postgreSQL type database
@@ -300,7 +301,9 @@ paste("% Deviance Explained: ",round(((coll.glm$null.deviance - coll.glm$devianc
 
 write.csv(signif(summary(coll.glm)$coefficients, digits=4),"output/vic_coll_coef.csv",row.names=FALSE)
 
-write.csv(formatC(anova(coll.glm)[2:4,2]/sum(anova(coll.glm)[2:4,2]), format='f',digits=4),"output/vic_coll_anova.csv",row.names=FALSE)
+write.csv(formatC(anova(coll.glm)[2:5,2]/sum(anova(coll.glm)[2:5,2]), format='f',digits=4),"output/vic_coll_anova.csv",row.names=FALSE)
+
+write.csv(varImp(coll.glm, scale=FALSE),"output/vic_coll_varimp.csv",row.names=FALSE)
 
 save(coll.glm,file="output/vic_coll_glm")
 

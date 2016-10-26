@@ -4,6 +4,7 @@ require(raster)
 require(boot)
 require(doMC)
 require(fields)
+require(caret)
 
 drv <- dbDriver("PostgreSQL")  #Specify a driver for postgreSQL type database
 con <- dbConnect(drv, dbname="qaeco_spatial", user="qaeco", password="Qpostgres15", host="boab.qaeco.com", port="5432")  #Connection to database server on Boab
@@ -136,7 +137,9 @@ paste("% Deviance Explained: ",round(((coll.glm$null.deviance - coll.glm$devianc
 
 write.csv(signif(summary(coll.glm)$coefficients, digits=4),"output/cal_coll_coef.csv",row.names=FALSE)
 
-write.csv(formatC(anova(coll.glm)[2:4,2]/sum(anova(coll.glm)[2:4,2]), format='f',digits=4),"output/cal_coll_anova.csv",row.names=FALSE)
+write.csv(formatC(anova(coll.glm)[2:5,2]/sum(anova(coll.glm)[2:5,2]), format='f',digits=4),"output/cal_coll_anova.csv",row.names=FALSE)
+
+write.csv(varImp(coll.glm, scale=FALSE),"output/cal_coll_varimp.csv",row.names=FALSE)
 
 save(coll.glm,file="output/cal_coll_glm")
 
