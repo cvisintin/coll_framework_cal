@@ -173,7 +173,7 @@ setkey(coll,uid)
 
 data1 <- coll
 
-data <- cov.data
+data <- copy(cov.data)
 data[data1, coll := i.coll]
 data <- na.omit(data)
 data <- data[!duplicated(data[,.(x,y)]),]
@@ -431,3 +431,70 @@ vic.cor.df.250 <- foreach(i = 1:20, .combine=rbind) %dopar% {
   data.frame(x=as.numeric(names(cor$correlation[1:20])), y=cor$correlation[1:20], n=i)
 }
 save(vic.cor.df.250,file="output/vic_coll_cor_250")
+
+#################################Validation#################################
+
+# INSERT into spatial_ref_sys (srid, auth_name, auth_srid, proj4text, srtext) values ( 909090, 'sr-org', 7759, '', '"+proj=tmerc +lat_0=0 +lon_0=145 +k=1 +x_0=500000 +y_0=10000000 +ellps=WGS84
+# +towgs84=-117.808,-51.536,137.784,0.303,0.446,0.234,-0.29 +units=m +no_defs"')
+
+# UPDATE spatial_ref_sys SET proj4text = '+proj=longlat +ellps=clrk66 +nadgrids=@conus,@alaska,@ntv2_0.gsb,@ntv1_can.dat,null +no_defs' WHERE srid = 909090;
+
+# CREATE TABLE gis_victoria.vic_gda9455_fauna_egkcoll_crashstats(
+#   id SERIAL PRIMARY KEY,
+#   cs_id VARCHAR(20),
+#   year INTEGER,
+#   month INTEGER,
+#   day INTEGER,
+#   hour CHAR(8)
+# );
+# SELECT AddGeometryColumn ('gis_victoria','vic_gda9455_fauna_egkcoll_crashstats','geom',28355,'POINT',2);
+# INSERT INTO gis_victoria.vic_gda9455_fauna_egkcoll_crashstats(cs_id, year, month, day, hour, geom)
+# (SELECT
+# accident.accident_no AS cs_id,
+# extract(year from date(accident.accidentdate)) AS year,
+# extract(month from date(accident.accidentdate)) AS month,
+# extract(day from date(accident.accidentdate)) AS day,
+# replace(accident.accidenttime,'.',':') AS hour,
+# ST_Transform(ST_SetSRID(ST_MakePoint(node.long, node.lat),4326),28355) AS geom
+# FROM
+# crashstats.accident
+# INNER JOIN
+# crashstats.node
+# ON
+# accident.accident_no=node.accident_no
+# INNER JOIN
+# crashstats.subdca
+# ON
+# accident.accident_no=subdca.accident_no
+# WHERE
+# subdca.sub_dca_code_desc LIKE '%Kangaroo%'
+# AND
+# RIGHT(accident.accidentdate,4) >= '2010');
+# CREATE INDEX vic_gda9455_fauna_egkcoll_crashstats_geom_idx ON gis_victoria.vic_gda9455_fauna_egkcoll_crashstats USING gist (geom);
+
+val.coll <- as.data.table(dbGetQuery(con,"
+  SELECT DISTINCT ON (p.id)
+    r.uid AS uid, CAST(1 AS INTEGER) AS coll
+	FROM
+    gis_victoria.vic_gda9455_roads_state as r,
+      (SELECT DISTINCT ON (geom)
+        id, geom
+      FROM
+        gis_victoria.vic_gda9455_fauna_egkcoll_crashstats
+      WHERE
+        year <= 2014) AS p
+  WHERE ST_DWithin(p.geom,r.geom,100)
+  ORDER BY p.id, ST_Distance(p.geom,r.geom)
+  "))
+setkey(val.coll,uid)
+
+val.data1 <- val.coll
+
+val.data <- copy(cov.data)
+val.data[val.data1, coll := i.coll]
+val.data <- na.omit(val.data)
+val.data <- val.data[!duplicated(val.data[,.(x,y)]),]
+
+val.pred.glm <- predict(coll.glm, data, type="response")  #Make predictions with regression model fit
+
+roc.val <- roc(val.data$coll, val.pred.glm)  #Compare collision records to predictions using receiver operator characteristic (ROC) function and report value
