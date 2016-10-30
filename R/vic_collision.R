@@ -495,6 +495,14 @@ val.data[val.data1, coll := i.coll]
 val.data <- na.omit(val.data)
 val.data <- val.data[!duplicated(val.data[,.(x,y)]),]
 
-val.pred.glm <- predict(coll.glm, data, type="response")  #Make predictions with regression model fit
+val.pred.glm <- predict(coll.glm, val.data, type="link")  #Make predictions with regression model fit
+summary(glm(val.data$coll~val.pred.glm, family=binomial(link = "cloglog")))
+summary(glm(val.data$coll~1, offset=val.pred.glm, family=binomial(link = "cloglog")))
 
-roc.val <- roc(val.data$coll, val.pred.glm)  #Compare collision records to predictions using receiver operator characteristic (ROC) function and report value
+roc.val <- roc(val.data$coll, predict(coll.glm, val.data, type="response"))  #Compare collision records to predictions using receiver operator characteristic (ROC) function and report value
+
+require(rms)
+val.prob(val.pred.glm, val.data$coll, logistic.cal=FALSE)
+
+require(survival)
+coxph(Surv(rep(0,nrow(data)),rep(1,nrow(data)),data$coll)~log(egk) + log(tvol) + I(log(tvol)^2) + log(tspd), data=data)

@@ -268,6 +268,6 @@ val.data[val.data1, coll := i.coll]
 val.data <- na.omit(val.data)
 val.data <- val.data[!duplicated(val.data[,.(x,y)]),]
 
-val.pred.glm <- predict(coll.glm, data, type="response")  #Make predictions with regression model fit
+val.pred.glm <- predict(coll.glm, data, type="link")  #Make predictions with regression model fit
 
 roc.val <- roc(val.data$coll, val.pred.glm)  #Compare collision records to predictions using receiver operator characteristic (ROC) function and report value
