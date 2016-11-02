@@ -480,9 +480,7 @@ val.coll <- as.data.table(dbGetQuery(con,"
       (SELECT DISTINCT ON (geom)
         id, geom
       FROM
-        gis_victoria.vic_gda9455_fauna_egkcoll_crashstats
-      WHERE
-        year <= 2014) AS p
+        gis_victoria.vic_gda9455_fauna_egkcoll_crashstats) AS p
   WHERE ST_DWithin(p.geom,r.geom,100)
   ORDER BY p.id, ST_Distance(p.geom,r.geom)
   "))
@@ -495,14 +493,28 @@ val.data[val.data1, coll := i.coll]
 val.data <- na.omit(val.data)
 val.data <- val.data[!duplicated(val.data[,.(x,y)]),]
 
-val.pred.glm <- predict(coll.glm, val.data, type="link")  #Make predictions with regression model fit
-summary(glm(val.data$coll~val.pred.glm, family=binomial(link = "cloglog")))
-summary(glm(val.data$coll~1, offset=val.pred.glm, family=binomial(link = "cloglog")))
+val.pred.glm <- predict(coll.glm, val.data, type="link")  #Make predictions with regression model fit on link scale
 
-roc.val <- roc(val.data$coll, predict(coll.glm, val.data, type="response"))  #Compare collision records to predictions using receiver operator characteristic (ROC) function and report value
+#summary(glm(val.data$coll~1, family=binomial(link = "cloglog")))
+#summary(glm(val.data$coll~1, offset=val.pred.glm, family=binomial(link = "cloglog")))
 
-require(rms)
-val.prob(val.pred.glm, val.data$coll, logistic.cal=FALSE)
+summary(glm(val.data$coll ~ val.pred.glm, family = binomial(link = "cloglog")))  #slope is close to ine therefore model is well calibrated to external data after accounting for multiplicative differences
 
-require(survival)
-coxph(Surv(rep(0,nrow(data)),rep(1,nrow(data)),data$coll)~log(egk) + log(tvol) + I(log(tvol)^2) + log(tspd), data=data)
+exp(-1.68) #collisions are more rare in validation set
+
+summary(glm(val.data$coll~val.pred.glm, offset=val.pred.glm, family=binomial(link = "cloglog"))) #slope is not significantly different from 1 (difference of slopes = 0)
+
+#p <- predict(glm(val.data$coll~1, offset=val.pred.glm, family=binomial(link = "cloglog")), type="response")
+#p2 <-  predict(coll.glm, val.data, type="response")
+#p3 <- predict(glm(val.data$coll~val.pred.glm, family=binomial(link = "cloglog")), type="response")
+#roc.val <- roc(val.data$coll, predict(coll.glm, val.data, type="response"))  #Compare collision records to predictions using receiver operator characteristic (ROC) function and report value
+
+#0.95746    0.05074  18.870   <2e-16 ***
+
+#require(rms)
+#val.prob(p, val.data$coll, logistic.cal=FALSE)
+
+#glm(val.data$coll ~ qlogis(p), family = binomial)
+
+#require(survival)
+#coxph(Surv(rep(0,nrow(data)),rep(1,nrow(data)),data$coll)~log(egk) + log(tvol) + I(log(tvol)^2) + log(tspd), data=data)
