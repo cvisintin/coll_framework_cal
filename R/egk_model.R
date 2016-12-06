@@ -6,6 +6,7 @@ require(gbm)
 require(dismo)
 require(data.table)
 require(ncf)
+require(foreach)
 
 # grid.files <- list.files(path='data/grids/vic/envi') #Create vector of filenames
 # 
@@ -60,3 +61,121 @@ cor <- correlog(model.data[,1], model.data[,2], resid(kang.brt), increment=1000,
 vic.cor.df <- data.frame(x=as.numeric(names(cor$correlation[1:20])), y=cor$correlation[1:20])
 
 save(vic.cor.df,file="output/vic_brt_cor")
+
+########################DWPR######################
+
+p.wt <- rep(1.0e-6, length(model.data$OCC))
+
+p.wt[model.data$OCC == 0] <- 237629/sum(model.data$OCC == 0)
+
+X.des <- model.matrix(~ ELEV + GREEN + LIGHT + MNTEMPWQ + PRECDM + SLOPE + TREEDENS + X + Y, model.data)
+kang.dwpr <- glm(model.data$OCC/p.wt ~ X.des-1, family=poisson, weights=p.wt)
+
+kang.dwpr <- glm(model.data$OCC/p.wt ~ ELEV + GREEN + LIGHT + MNTEMPWQ + PRECDM + SLOPE + TREEDENS + X + Y, family=poisson, weights=p.wt, data=model.data)
+
+require(ppmlasso)
+
+form = ~ poly(ELEV,GREEN,LIGHT,MNTEMPWQ,PRECDM,SLOPE,TREEDENS,degree=2,raw=TRUE)
+scales = c(.001, .002, .004, .008, .016)
+
+findres(scales, formula = form, sp.xy = model.data[model.data$OCC==1,], env.grid = quad)
+
+# cov$XCOORD <- cov$X
+# cov$YCOORD <- cov$Y
+# cov$X <- cov$Y <- 0
+# 
+# X <- vars[["X"]]
+# Y <- vars[["Y"]]
+# X[na.omit(X)] <- 0
+# Y[na.omit(Y)] <- 0
+
+vars.pred <- stack(vars[[1:7]],X,Y)
+
+names(vars.pred) <- names(coef(kang.dwpr))[-1]
+
+dwpr.preds <- predict(vars, kang.dwpr, type="response") #Make predictions with model fit based on covariate values in maps
+
+writeRaster(dwpr.preds, filename="/home/casey/Research/Github/coll_framework_cal/output/egk_preds_dwpr.tif", format="GTiff", overwrite=TRUE, NAflag=-9999, datatype='FLT4S') #Write out prediction map in tif format
+
+plot(dwpr.preds, col=colorRampPalette(c("white","red"))(100)) #Plot prediction map using red to white color scheme
+
+require(spatstat)
+
+cov <- foreach(i = 1:9, .combine=cbind) %do% {
+  #assign(names(vars)[i],as(vars[[i]],'vector'))
+  df <- data.frame(as(vars[[i]],'vector'))
+  colnames(df) <- paste(names(vars)[i])
+  df
+}
+
+quad <- na.omit(cov)
+
+# X <- unique(quad$X*1000)
+# Y <- unique(quad$Y*1000)
+ux = sort(unique(quad$X*1000))
+uy = sort(unique(quad$Y*1000))
+nx = length(ux)
+ny = length(uy)
+col.ref = match(quad$X*1000, ux)
+row.ref = match(quad$Y*1000, uy)
+all.vec = rep(NA, max(row.ref)*max(col.ref))
+vec.ref = (col.ref - 1)*max(row.ref) + row.ref
+all.vec[vec.ref] = 1
+vic.mask = matrix(all.vec, max(row.ref), max(col.ref), dimnames = list(uy, ux))
+vic.win = as.owin(im(vic.mask, xcol = ux, yrow = uy))
+ppp.dat = ppp(model.data$X[model.data$OCC==1]*1000, model.data$Y[model.data$OCC==1]*1000, window = vic.win, check = FALSE)
+quads = ppp(x=quad$X*1000, y=quad$Y*1000, window = vic.win)
+
+Q = quadscheme(data = ppp.dat, dummy = quads, method = "grid", ntile = c(nx, ny), npix = c(nx, ny))
+
+X.des = cbind(poly(quad$ELEV, quad$GREEN, quad$LIGHT, quad$MNTEMPWQ, quad$PRECDM, quad$SLOPE, quad$TREEDENS, degree = 2,raw = TRUE))
+
+int.list = list()
+
+for (i in 1:dim(X.des)[2]) {
+  all.vec = rep(NA, max(row.ref)*max(col.ref))
+  vec.ref = (col.ref - 1)*max(row.ref) + row.ref
+  all.vec[vec.ref] = X.des[,i]
+  int.list[[i]] = im(matrix(all.vec, max(row.ref), max(col.ref), dimnames = list(uy, ux)), xcol = ux, yrow = uy)
+}
+
+names(int.list) = paste("V", 1:dim(X.des)[2], sep = "")
+pred.list = int.list
+
+int.form = as.formula(paste("~", paste(names(int.list), collapse = "+")))
+ft.int = ppm(Q, trend = as.formula(int.form), covariates = int.list)
+
+pred.int = predict(ft.int, covariates = pred.list, ngrid = c(ny, nx))
+
+plot(pred.int)
+plot(leverage(ft.int))
+plot(influence(ft.int))
+
+plot(parres(ft.int, "V1"))
+plot(parres(ft.int, "V2"))
+plot(parres(ft.int, "V3"))
+plot(parres(ft.int, "V4"))
+plot(parres(ft.int, "V5"))
+plot(parres(ft.int, "V6"))
+plot(parres(ft.int, "V7"))
+
+sp.xy = unique(data.frame(X=model.data$X[model.data$OCC==1], Y=model.data$Y[model.data$OCC==1]))
+
+#ppm.form = ~ poly(ELEV, GREEN, LIGHT, MNTEMPWQ, PRECDM, SLOPE, TREEDENS, degree = 2,raw = TRUE)
+#ppm.fit = ppmlasso(ppm.form, sp.xy = sp.xy, env.grid = quad, sp.scale = 1, criterion = "nlgcv")
+
+victoria <- readShapePoly("/home/casey/Research/GIS_Repo/VICTORIA/VIC_GDA9455_ADMIN_STATE.shp")
+
+polygon <- data.frame(x=rev(victoria@polygons[[1]]@Polygons[[1]]@coords[,1]/1000),y=rev(victoria@polygons[[1]]@Polygons[[1]]@coords[,2]/1000))
+sd <- spatstat::ppp(sp.xy$X*1000, sp.xy$Y*1000, poly=polygon)
+minimum.contrast(sd, model = "exponential", method = "g", intens = density(sd), transform = log)
+chooseCellwidth(sd, cwinit=1)
+Cellwidth <- 1
+covar=SpatialPixelsDataFrame(cbind(quad$X*1000,quad$Y*1000),quad[,1:7])
+polyolay <- getpolyol(data = sd, pixelcovariates = covar, cellwidth = Cellwidth)
+covar@data=guessinterp(covar@data)
+
+kang.graf <- graf(model.data$OCC, model.data[,4:10])
+
+graf.preds <- predict(kang.graf, na.omit(cov[,1:7]), type="response") #Make predictions with model fit based on covariate values in maps
+
