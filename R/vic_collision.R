@@ -43,6 +43,7 @@ tspd.preds <- as.data.table(read.csv("output/vic_tspd_preds_rf.csv"))  #Read in 
 cov.data <- Reduce(function(x, y) merge(x, y, all=TRUE), list(roads,tvol.preds,tspd.preds))
 
 sdm.preds <- raster("output/egk_preds_brt.tif")
+###sdm.preds <- raster("output/egk_preds_brt.tif") ARI Grid???
 
 cov.data$egk <- raster::extract(sdm.preds,cov.data[,.(x,y)])
 
@@ -268,7 +269,43 @@ coll.glm <- glm(formula = coll ~ log(egk) + log(tvol) + I(log(tvol)^2) + log(tsp
 
 summary(coll.glm)  #Examine fit of regression model
 
-paste("% Deviance Explained: ",round(((coll.glm$null.deviance - coll.glm$deviance)/coll.glm$null.deviance)*100,2),sep="")  #Report reduction in deviance
+paste0("% Deviance Explained: ",round(((coll.glm$null.deviance - coll.glm$deviance)/coll.glm$null.deviance)*100,2))  #Report reduction in deviance
+
+######Sensitivity######
+
+registerDoMC(detectCores() - 1)
+
+scramble <- function(x, k=3L) {
+  x.s <- seq_along(x)
+  y.s <- sample(x.s)
+  x[unlist(split(x.s[y.s], (y.s-1) %/% k), use.names = FALSE)]
+}
+
+model.sens <- foreach(i = 0:100) %dopar% {
+  sample <- scramble(data$egk, length(data$egk)*i/100)
+  rdm.coll.glm <- glm(formula = coll ~ log(egk) + log(tvol) + I(log(tvol)^2) + log(tspd), family=binomial(link = "cloglog"), data = cbind(data[,.(coll,tvol,tspd)],egk=sample))  #Fit regression model
+  cbind(coef(rdm.coll.glm)[2],
+        coef(summary(rdm.coll.glm))[, "Pr(>|z|)"][2],
+        round(((rdm.coll.glm$null.deviance - rdm.coll.glm$deviance)/rdm.coll.glm$null.deviance)*100,2)
+  )
+}
+
+model.sens <- foreach(i = 0:100) %dopar% {
+  sample <- data$egk + rnorm(length(data$egk), 0, 1/i)
+  rdm.coll.glm <- glm(formula = coll ~ log(egk) + log(tvol) + I(log(tvol)^2) + log(tspd), family=binomial(link = "cloglog"), data = cbind(data[,.(coll,tvol,tspd)],egk=sample))  #Fit regression model
+  cbind(coef(rdm.coll.glm)[2],
+        coef(summary(rdm.coll.glm))[, "Pr(>|z|)"][2],
+        round(((rdm.coll.glm$null.deviance - rdm.coll.glm$deviance)/rdm.coll.glm$null.deviance)*100,2)
+        )
+}
+
+plot(seq(0,100,1),sapply(model.sens, "[[", 1), type='l', xlab="Percent of Randomised Data", ylab="SDM Coefficient")
+
+plot(seq(0,100,1),sapply(model.sens, "[[", 2), type='l', xlab="Percent of Randomised Data", ylab="Coefficent Error")
+
+plot(seq(0,100,1),sapply(model.sens, "[[", 3), type='l', xlab="Percent of Randomised Data", ylab="Percent Variance Explained")
+
+#######################
 
 # crds <- as.matrix(data[,.("x"=x/1000,"y"=y/1000)])
 # k1 <- knn2nb(knearneigh(crds, 1, longlat=FALSE, RANN=TRUE))
