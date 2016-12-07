@@ -67,7 +67,7 @@ cov.data$coll <- as.integer(0)
 #   "))
 # setkey(coll,uid)
 
-coll <- as.data.table(dbGetQuery(con,"
+coll_a <- as.data.table(dbGetQuery(con,"
   SELECT DISTINCT ON (p.id)
     r.uid AS uid, CAST(1 AS INTEGER) AS coll
 	FROM
@@ -83,7 +83,23 @@ coll <- as.data.table(dbGetQuery(con,"
   WHERE ST_DWithin(p.geom,r.geom,100)
   ORDER BY p.id, ST_Distance(p.geom,r.geom)
   "))
-setkey(coll,uid)
+setkey(coll_a,uid)
+
+coll_b <- as.data.table(dbGetQuery(con,"
+  SELECT DISTINCT ON (p.id)
+    r.uid AS uid, CAST(1 AS INTEGER) AS coll
+	FROM
+    gis_victoria.vic_gda9455_roads_state as r,
+      (SELECT DISTINCT ON (geom)
+        id, geom
+      FROM
+        gis_victoria.vic_gda9455_fauna_wv_2015_egkcoll
+      WHERE
+        (year >= 2014 AND month >= 6 AND day >2)) AS p
+  WHERE ST_DWithin(p.geom,r.geom,100)
+  ORDER BY p.id, ST_Distance(p.geom,r.geom)
+  "))
+setkey(coll_b,uid)
 
 # coll <- as.data.table(dbGetQuery(con,"
 #   SELECT DISTINCT ON (p.id)
@@ -172,7 +188,7 @@ setkey(coll,uid)
 #   "))
 # setkey(coll,uid)
 
-data1 <- coll
+data1 <- rbind(coll_a,coll_b)
 
 data <- copy(cov.data)
 data[data1, coll := i.coll]
@@ -537,7 +553,7 @@ val.pred.glm <- predict(coll.glm, val.data, type="link")  #Make predictions with
 
 summary(glm(val.data$coll ~ val.pred.glm, family = binomial(link = "cloglog")))  #slope is close to ine therefore model is well calibrated to external data after accounting for multiplicative differences
 
-exp(-1.68) #collisions are more rare in validation set
+exp(-2.21701) #collisions are more rare in validation set
 
 summary(glm(val.data$coll~val.pred.glm, offset=val.pred.glm, family=binomial(link = "cloglog"))) #slope is not significantly different from 1 (difference of slopes = 0)
 

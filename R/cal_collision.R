@@ -52,11 +52,11 @@ coll <- as.data.table(dbGetQuery(con,"
       (SELECT DISTINCT ON (geom)
         id, geom
       FROM
-        gis_california.cal_nad8310_fauna_cros
+        gis_california.cal_nad8310_fauna_cros_deer
       WHERE
-        scientific = 'Odocoileus hemionus'
+        confidence != 'Best Guess'
       AND
-        odatetime >= '2006-01-01 00:00') AS p
+        odatetime >= '2006-06-01 00:00') AS p
   WHERE ST_DWithin(p.geom,r.geom,100)
   ORDER BY p.id, ST_Distance(p.geom,r.geom)
   "))
@@ -241,7 +241,7 @@ val.pred.glm <- predict(coll.glm, val.data, type="link")  #Make predictions with
 
 summary(glm(val.data$coll ~ val.pred.glm, family = binomial(link = "cloglog")))  #slope is close to ine therefore model is well calibrated to external data after accounting for multiplicative differences
 
-exp(0.57862) #collisions are more abundant in validation set
+exp(0.34639) #collisions are more abundant in validation set
 
 summary(glm(val.data$coll~val.pred.glm, offset=val.pred.glm, family=binomial(link = "cloglog"))) #slope is not significantly different from 1 (difference of slopes = 0)
 
