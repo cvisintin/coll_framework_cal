@@ -15,7 +15,7 @@ colnames(light) <- c("x","y")
 tiff('figs/vic_light.tif', pointsize = 11, compression = "lzw", res=300, width = 900, height = 900)
 ggplot(light,aes(x=x,y=y)) + 
   geom_line(size=0.3) + 
-  ylab("Occurence (Pr)") + 
+  ylab("Relative Occurrence") + 
   xlab("Artificial Light (relative)") + 
   theme_bw() + 
   theme(legend.key = element_blank()) +
@@ -24,7 +24,8 @@ ggplot(light,aes(x=x,y=y)) +
   theme(axis.title.y = element_text(margin=unit(c(0,.3,0,0),"cm"))) +
   theme(panel.grid.major = element_line(size=0.1),panel.grid.minor = element_line(size=0.1)) +
   theme(text = element_text(size = 10)) +
-  scale_x_continuous(expand = c(0, 0), lim=c(0,65))
+  scale_x_continuous(expand = c(0, 0), lim=c(0,65)) +
+  annotate("text",  x=.05*max(light$x), y=.01*max(light$y), label = "Kangaroos", hjust=0)
 dev.off()
 
 #plot effect of elevation for kangaroos
@@ -34,7 +35,7 @@ colnames(elev) <- c("x","y")
 tiff('figs/vic_elev.tif', pointsize = 11, compression = "lzw", res=300, width = 900, height = 900)
 ggplot(elev,aes(x=x,y=y)) +
   geom_line(size=0.3) +
-  ylab("Occurence (Pr)") +
+  ylab("Relative Occurrence") +
   xlab("Elevation (m above sea level)") +
   theme_bw() + 
   theme(legend.key = element_blank()) +
@@ -43,7 +44,8 @@ ggplot(elev,aes(x=x,y=y)) +
   theme(axis.title.y = element_text(margin=unit(c(0,.3,0,0),"cm"))) +
   theme(panel.grid.major = element_line(size=0.1),panel.grid.minor = element_line(size=0.1)) +
   theme(text = element_text(size = 10)) +
-  scale_x_continuous(expand = c(0, 0), lim=c(0,1000))
+  scale_x_continuous(expand = c(0, 0), lim=c(0,1000)) +
+  annotate("text",  x=.05*max(elev$x), y=.01*max(elev$y), label = "Kangaroos", hjust=0)
 dev.off()
 
 #plot effect of vegetation greenness for kangaroos
@@ -53,7 +55,7 @@ colnames(green) <- c("x","y")
 tiff('figs/vic_green.tif', pointsize = 11, compression = "lzw", res=300, width = 900, height = 900)
 ggplot(green,aes(x=x,y=y)) + 
   geom_line(size=0.3) + 
-  ylab("Occurence (Pr)") + 
+  ylab("Relative Occurrence") + 
   xlab("Seasonal Change in Vegetation Greenness") + 
   theme_bw() + 
   theme(legend.key = element_blank()) +
@@ -62,7 +64,8 @@ ggplot(green,aes(x=x,y=y)) +
   theme(axis.title.y = element_text(margin=unit(c(0,.3,0,0),"cm"))) +
   theme(panel.grid.major = element_line(size=0.1),panel.grid.minor = element_line(size=0.1)) +
   theme(text = element_text(size = 10)) +
-  scale_x_continuous(expand = c(0, 0), lim=c(-0.1,0.5))
+  scale_x_continuous(expand = c(0, 0), lim=c(-0.1,0.5)) +
+  annotate("text",  x=.05*max(green$x), y=.01*max(green$y), label = "Kangaroos", hjust=0)
 dev.off()
 
 
@@ -74,7 +77,7 @@ colnames(slope) <- c("x","y")
 tiff('figs/cal_slope.tif', pointsize = 11, compression = "lzw", res=300, width = 900, height = 900)
 ggplot(slope,aes(x=x,y=y)) + 
   geom_line(size=0.3) + 
-  ylab("Occurence (Pr)") + 
+  ylab("Relative Occurrence") + 
   xlab("Slope (percent)") + 
   theme_bw() + 
   theme(legend.key = element_blank(), legend.position="none") +
@@ -83,7 +86,8 @@ ggplot(slope,aes(x=x,y=y)) +
   theme(axis.title.y = element_text(margin=unit(c(0,.3,0,0),"cm"))) +
   theme(panel.grid.major = element_line(size=0.1),panel.grid.minor = element_line(size=0.1)) +
   theme(text = element_text(size = 10)) +
-  scale_x_continuous(expand = c(0, 0), lim=c(0,50))
+  scale_x_continuous(expand = c(0, 0), lim=c(0,50)) +
+  annotate("text",  x=.05*max(slope$x), y=.01*max(slope$y), label = "Mule Deer", hjust=0)
 dev.off()
 
 #plot effect of light for deer
@@ -93,7 +97,7 @@ colnames(light) <- c("x","y")
 tiff('figs/cal_light.tif', pointsize = 11, compression = "lzw", res=300, width = 900, height = 900)
 ggplot(light,aes(x=x,y=y)) + 
   geom_line(size=0.3) + 
-  ylab("Occurence (Pr)") + 
+  ylab("Relative Occurrence") + 
   xlab("Artificial Light (relative)") + 
   theme_bw() + 
   theme(legend.key = element_blank(), legend.position="none") +
@@ -102,7 +106,8 @@ ggplot(light,aes(x=x,y=y)) +
   theme(axis.title.y = element_text(margin=unit(c(0,.3,0,0),"cm"))) +
   theme(panel.grid.major = element_line(size=0.1),panel.grid.minor = element_line(size=0.1)) +
   theme(text = element_text(size = 10)) +
-  scale_x_continuous(expand = c(0, 0), lim=c(0,65))
+  scale_x_continuous(expand = c(0, 0), lim=c(0,65)) +
+  annotate("text",  x=.05*max(light$x), y=.01*max(light$y), label = "Mule Deer", hjust=0)
 dev.off()
 
 #plot effect of greenness for deer
@@ -112,7 +117,7 @@ colnames(green) <- c("x","y")
 tiff('figs/cal_green.tif', pointsize = 11, compression = "lzw", res=300, width = 900, height = 900)
 ggplot(green,aes(x=x,y=y)) + 
   geom_line(size=0.3) + 
-  ylab("Occurence (Pr)") + 
+  ylab("Relative Occurrence") + 
   xlab("Seasonal Change in Vegetation Greenness") + 
   theme_bw() + 
   theme(legend.key = element_blank()) +
@@ -121,5 +126,6 @@ ggplot(green,aes(x=x,y=y)) +
   theme(axis.title.y = element_text(margin=unit(c(0,.3,0,0),"cm"))) +
   theme(panel.grid.major = element_line(size=0.1),panel.grid.minor = element_line(size=0.1)) +
   theme(text = element_text(size = 10)) +
-  scale_x_continuous(expand = c(0, 0), lim=c(-0.3,0.3))
+  scale_x_continuous(expand = c(0, 0), lim=c(-0.3,0.3)) +
+  annotate("text",  x=.05*max(green$x), y=.01*max(green$y), label = "Mule Deer", hjust=0)
 dev.off()
