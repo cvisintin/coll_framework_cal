@@ -40,7 +40,8 @@ ggplot(occ, aes(x=x,y=y,ymin=ymin,ymax=ymax)) +
   theme(axis.title.y = element_text(margin=unit(c(0,.3,0,0),"cm"))) +
   theme(panel.grid.major = element_line(size=0.1),panel.grid.minor = element_line(size=0.1)) +
   theme(text = element_text(size = 10)) +
-  scale_x_continuous(breaks=seq(0,1,by=.1), expand = c(0, 0), lim=c(0,1)) #+
+  scale_x_continuous(breaks=seq(0,1,by=.1), expand = c(0, 0), lim=c(0,1)) +
+  annotate("text",  x=.05*max(occ$x), y=max(occ$y), label = "Kangaroos", hjust=0)
   #scale_y_continuous(breaks=seq(0,.05,by=.005), expand = c(0, 0), lim=c(0,.05)) #+
   #guides(colour=FALSE)
 dev.off()
@@ -72,7 +73,8 @@ ggplot(tvol, aes(x=x/1000,y=y,ymin=ymin,ymax=ymax)) +
   theme(axis.title.y = element_text(margin=unit(c(0,.3,0,0),"cm"))) +
   theme(panel.grid.major = element_line(size=0.1),panel.grid.minor = element_line(size=0.1)) +
   theme(text = element_text(size = 10)) +
-  scale_x_continuous(breaks=seq(0,40,by=5), expand = c(0, 0), lim=c(0,40)) #+
+  scale_x_continuous(breaks=seq(0,40,by=5), expand = c(0, 0), lim=c(0,40)) +
+  annotate("text",  x=(.05*max(tvol$x))/1000, y=.2*max(tvol$y), label = "Kangaroos", hjust=0)
   #scale_y_continuous(breaks=seq(0,.05,by=.005), expand = c(0, 0), lim=c(0,.05)) #+
   #guides(colour=FALSE)
 dev.off()
@@ -104,7 +106,8 @@ ggplot(tspd, aes(x=x,y=y,ymin=ymin,ymax=ymax)) +
   theme(axis.title.y = element_text(margin=unit(c(0,.3,0,0),"cm"))) +
   theme(panel.grid.major = element_line(size=0.1),panel.grid.minor = element_line(size=0.1)) +
   theme(text = element_text(size = 10)) +
-  scale_x_continuous(breaks=seq(40,110,by=10), expand = c(0, 0), lim=c(40,110)) #+
+  scale_x_continuous(breaks=seq(40,110,by=10), expand = c(0, 0), lim=c(40,110)) +
+  annotate("text",  x=45, y=max(tspd$y), label = "Kangaroos", hjust=0)
   #scale_y_continuous(breaks=seq(0,.05,by=.005), expand = c(0, 0), lim=c(0,.05)) #+
   #guides(colour=FALSE)
 dev.off()
@@ -124,7 +127,8 @@ ggplot(vic.cor.df.1000,aes(x=x,y=y,group=as.factor(n))) +
   geom_hline(aes(yintercept=0), linetype=2, size=0.3) +
   theme(text = element_text(size = 10), axis.text=element_text(size=6)) +
   #scale_y_continuous(breaks=seq(-1,1,by=.2), expand = c(0, 0), lim=c(-1,1)) +
-  scale_x_continuous(breaks=seq(1, 20, 1))
+  scale_x_continuous(breaks=seq(1, 20, 1)) +
+  annotate("text",  x=1, y=max(vic.cor.df.1000$y), label = "Kangaroos", hjust=0)
 dev.off()
 
 
@@ -142,5 +146,6 @@ ggplot(vic.cor.df.250,aes(x=x/4,y=y,group=as.factor(n))) +
   theme(text = element_text(size = 10), axis.text=element_text(size=6)) +
   theme(axis.text.x = element_text(angle = 90, hjust = 0)) +
   #scale_y_continuous(breaks=seq(-1,1,by=.2), expand = c(0, 0), lim=c(-1,1)) +
-  scale_x_continuous(breaks=seq(.25, 5, .25))
+  scale_x_continuous(breaks=seq(.25, 5, .25)) +
+  annotate("text",  x=.25, y=max(vic.cor.df.250$y), label = "Kangaroos", hjust=0)
 dev.off()
