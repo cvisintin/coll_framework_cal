@@ -181,7 +181,7 @@ coll.resid <- foreach(i = 1:nrow(data), .combine=c) %dopar% {
   
   ecdf(fuzzy.simulations)(fuzzy.y)
 }
-) ###644 second runtime
+) ###473 second runtime
 
 save(coll.resid,file="output/cal_coll_resid")
 
@@ -195,7 +195,7 @@ cal.cor.df.1000 <- foreach(i = 1:20, .combine=rbind) %dopar% {
   cor <- correlog(spc.r[,1], spc.r[,2], spc.r[,3], increment=1000, resamp=0, latlon=FALSE)
   data.frame(x=as.numeric(names(cor$correlation[1:20])), y=cor$correlation[1:20], n=i)
 }
-save(cal.cor.df.1000,file="output/vic_coll_cor_1000")
+save(cal.cor.df.1000,file="output/cal_coll_cor_1000")
 
 cal.cor.df.250 <- foreach(i = 1:20, .combine=rbind) %dopar% {
   set.seed(123+i)
@@ -203,7 +203,7 @@ cal.cor.df.250 <- foreach(i = 1:20, .combine=rbind) %dopar% {
   cor <- correlog(spc.r[,1], spc.r[,2], spc.r[,3], increment=250, resamp=0, latlon=FALSE)
   data.frame(x=as.numeric(names(cor$correlation[1:20])), y=cor$correlation[1:20], n=i)
 }
-save(cal.cor.df.250,file="output/vic_coll_cor_250")
+save(cal.cor.df.250,file="output/cal_coll_cor_250")
 
 #################################Validation#################################
 
