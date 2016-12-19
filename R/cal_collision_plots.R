@@ -122,7 +122,7 @@ ggplot(cal.cor.df.1000,aes(x=x,y=y,group=as.factor(n))) +
   theme(text = element_text(size = 10), axis.text=element_text(size=6)) +
   #scale_y_continuous(breaks=seq(-1,1,by=.2), expand = c(0, 0), lim=c(-1,1)) +
   scale_x_continuous(breaks=seq(1, 20, 1)) +
-  annotate("text",  x=1, y=max(vic.cor.df.1000$y), label = "Mule Deer", hjust=0)
+  annotate("text",  x=1, y=max(cal.cor.df.1000$y), label = "Mule Deer", hjust=0)
 dev.off()
 
 tiff('figs/cal_coll_cor_250.tif', pointsize = 12, compression = "lzw", res=300, width = 900, height = 900)
@@ -140,5 +140,5 @@ ggplot(cal.cor.df.250,aes(x=x/4,y=y,group=as.factor(n))) +
   theme(axis.text.x = element_text(angle = 90, hjust = 0)) +
   #scale_y_continuous(breaks=seq(-1,1,by=.2), expand = c(0, 0), lim=c(-1,1)) +
   scale_x_continuous(breaks=seq(.25, 5, .25)) +
-  annotate("text",  x=.25, y=max(vic.cor.df.250$y), label = "Mule Deer", hjust=0)
+  annotate("text",  x=.25, y=max(cal.cor.df.250$y), label = "Mule Deer", hjust=0)
 dev.off()
