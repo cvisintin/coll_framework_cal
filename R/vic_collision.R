@@ -289,37 +289,37 @@ paste0("% Deviance Explained: ",round(((coll.glm$null.deviance - coll.glm$devian
 
 ######Sensitivity######
 
-registerDoMC(detectCores() - 1)
-
-scramble <- function(x, k=3L) {
-  x.s <- seq_along(x)
-  y.s <- sample(x.s)
-  x[unlist(split(x.s[y.s], (y.s-1) %/% k), use.names = FALSE)]
-}
-
-model.sens <- foreach(i = 0:100) %dopar% {
-  sample <- scramble(data$egk, length(data$egk)*i/100)
-  rdm.coll.glm <- glm(formula = coll ~ log(egk) + log(tvol) + I(log(tvol)^2) + log(tspd), family=binomial(link = "cloglog"), data = cbind(data[,.(coll,tvol,tspd)],egk=sample))  #Fit regression model
-  cbind(coef(rdm.coll.glm)[2],
-        coef(summary(rdm.coll.glm))[, "Pr(>|z|)"][2],
-        round(((rdm.coll.glm$null.deviance - rdm.coll.glm$deviance)/rdm.coll.glm$null.deviance)*100,2)
-  )
-}
-
-model.sens <- foreach(i = 0:100) %dopar% {
-  sample <- data$egk + rnorm(length(data$egk), 0, 1/i)
-  rdm.coll.glm <- glm(formula = coll ~ log(egk) + log(tvol) + I(log(tvol)^2) + log(tspd), family=binomial(link = "cloglog"), data = cbind(data[,.(coll,tvol,tspd)],egk=sample))  #Fit regression model
-  cbind(coef(rdm.coll.glm)[2],
-        coef(summary(rdm.coll.glm))[, "Pr(>|z|)"][2],
-        round(((rdm.coll.glm$null.deviance - rdm.coll.glm$deviance)/rdm.coll.glm$null.deviance)*100,2)
-        )
-}
-
-plot(seq(0,100,1),sapply(model.sens, "[[", 1), type='l', xlab="Percent of Randomised Data", ylab="SDM Coefficient")
-
-plot(seq(0,100,1),sapply(model.sens, "[[", 2), type='l', xlab="Percent of Randomised Data", ylab="Coefficent Error")
-
-plot(seq(0,100,1),sapply(model.sens, "[[", 3), type='l', xlab="Percent of Randomised Data", ylab="Percent Variance Explained")
+# registerDoMC(detectCores() - 1)
+# 
+# scramble <- function(x, k=3L) {
+#   x.s <- seq_along(x)
+#   y.s <- sample(x.s)
+#   x[unlist(split(x.s[y.s], (y.s-1) %/% k), use.names = FALSE)]
+# }
+# 
+# model.sens <- foreach(i = 0:100) %dopar% {
+#   sample <- scramble(data$egk, length(data$egk)*i/100)
+#   rdm.coll.glm <- glm(formula = coll ~ log(egk) + log(tvol) + I(log(tvol)^2) + log(tspd), family=binomial(link = "cloglog"), data = cbind(data[,.(coll,tvol,tspd)],egk=sample))  #Fit regression model
+#   cbind(coef(rdm.coll.glm)[2],
+#         coef(summary(rdm.coll.glm))[, "Pr(>|z|)"][2],
+#         round(((rdm.coll.glm$null.deviance - rdm.coll.glm$deviance)/rdm.coll.glm$null.deviance)*100,2)
+#   )
+# }
+# 
+# model.sens <- foreach(i = 0:100) %dopar% {
+#   sample <- data$egk + rnorm(length(data$egk), 0, 1/i)
+#   rdm.coll.glm <- glm(formula = coll ~ log(egk) + log(tvol) + I(log(tvol)^2) + log(tspd), family=binomial(link = "cloglog"), data = cbind(data[,.(coll,tvol,tspd)],egk=sample))  #Fit regression model
+#   cbind(coef(rdm.coll.glm)[2],
+#         coef(summary(rdm.coll.glm))[, "Pr(>|z|)"][2],
+#         round(((rdm.coll.glm$null.deviance - rdm.coll.glm$deviance)/rdm.coll.glm$null.deviance)*100,2)
+#         )
+# }
+# 
+# plot(seq(0,100,1),sapply(model.sens, "[[", 1), type='l', xlab="Percent of Randomised Data", ylab="SDM Coefficient")
+# 
+# plot(seq(0,100,1),sapply(model.sens, "[[", 2), type='l', xlab="Percent of Randomised Data", ylab="Coefficent Error")
+# 
+# plot(seq(0,100,1),sapply(model.sens, "[[", 3), type='l', xlab="Percent of Randomised Data", ylab="Percent Variance Explained")
 
 #######################
 
@@ -369,6 +369,7 @@ coll.preds.df <- na.omit(coll.preds.df)
 
 write.csv(coll.preds.df, file = "output/vic_coll_preds_glm.csv", row.names=FALSE)
 
+dbWriteTable(con, c("gis_victoria", "vic_nogeom_roads_egkcollrisk"), value = coll.preds.df, row.names=FALSE, overwrite=TRUE)
 
 ######################Stan###################
 # require(rstan)

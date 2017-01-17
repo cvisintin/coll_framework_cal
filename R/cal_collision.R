@@ -153,6 +153,7 @@ coll.preds.df <- na.omit(coll.preds.df)
 
 write.csv(coll.preds.df, file = "output/cal_coll_preds_glm.csv", row.names=FALSE)
 
+dbWriteTable(con, c("gis_california", "cal_nogeom_roads_deercollrisk"), value = coll.preds.df, row.names=FALSE, overwrite=TRUE)
 
 prob <- predict(coll.glm, type = 'response')
 n <- 5000
