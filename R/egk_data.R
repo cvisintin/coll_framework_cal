@@ -4,6 +4,9 @@ require(rgdal)
 require(raster)
 require(RPostgreSQL)
 require(fields)
+require(sp)
+require(data.table)
+require(dismo)
 
 thin.algorithm <- function (rec.df.orig, thin.par, reps) 
 {
@@ -84,6 +87,57 @@ colnames(data1) <- toupper(colnames(data1))
 
 data1.1 <- thin.algorithm(data1, 1000, 50)
 data1.1 <- as.data.table(cbind(data1.1,"OCC"=1))
+
+##############################Grouping for cross-validation folds################################
+k <- kmeans(matrix(c(data1$X,data1$Y), ncol=2), 10)
+
+cen <- aggregate(matrix(c(data1$X,data1$Y), ncol=2),by=list(k$cluster),FUN=mean)
+cen.sp <- SpatialPointsDataFrame(as.matrix(cen[,2:3]), data.frame("FOLD"=cen[,1]), proj4string=CRS("+init=epsg:28355"))
+
+v <- voronoi(cen.sp, clip)
+xy0 <- SpatialPointsDataFrame(matrix(c(read.csv("data/vic_bg_data_pts.csv")$X,read.csv("data/vic_bg_data_pts.csv")$Y), ncol=2), data.frame(ID=seq(1:nrow(data0))), proj4string=CRS("+init=epsg:28355"))
+
+data1.1 <- as.data.table(cbind("X"=data1$X, "Y"=data1$Y, "OCC"=1, "FOLD"=k$cluster))
+data0 <- as.data.table(cbind(read.csv("data/vic_bg_data_pts.csv"), over(xy0 , v)))
+
+egk.data <- rbind(data1.1,data0)
+plot(egk.data$X,egk.data$Y, col=egk.data$FOLD)
+
+
+xy <- SpatialPointsDataFrame(matrix(c(data1$X,data1$Y), ncol=2), data.frame(ID=seq(1:nrow(data1))), proj4string=CRS("+init=epsg:28355"))
+
+xy0 <- SpatialPointsDataFrame(matrix(c(data0$X,data0$Y), ncol=2), data.frame(ID=seq(1:nrow(data0))), proj4string=CRS("+init=epsg:28355"))
+
+hc <- hclust(dist(data.frame(rownames=rownames(xy@data), x=coordinates(xy)[,1], y=coordinates(xy)[,2])), method="complete")
+
+#plot(hc, hang=-1)
+
+hc.d <- cutree(hc, h=200000)
+
+xy@data <- data.frame(xy@data, fold=hc.d)
+
+data1.1 <- as.data.table(cbind(xy@coords, "OCC"=1, xy@data$fold))
+colnames(data1.1) <- c("X", "Y", "OCC", "ID")
+
+xy.dt <- as.data.table(cbind(xy@data,xy@coords))
+
+cen.points <- xy.dt[, .(x=mean(coords.x1),y=mean(coords.x2)), by=fold]
+
+xy.cen <- SpatialPointsDataFrame(matrix(c(cen.points$x,cen.points$y), ncol=2), data.frame(ID=cen.points$fold), proj4string=CRS("+init=epsg:28355"))
+
+v <- voronoi(xy.cen, clip)
+
+#plot(v, col=factor(v@data$ID))
+
+data0 <- as.data.table(cbind(data0, over(xy0 , v)))
+
+egk.data <- rbind(data1.1,data0)
+
+plot(egk.data$X,egk.data$Y, col=egk.data$ID)
+
+##########################################################################################
+
+data1.1 <- as.data.table(cbind(data1,"OCC"=1))
 
 egk.data <- rbind(data1.1,data0)
 colnames(egk.data)[1:2] <- c("XCOORD","YCOORD")

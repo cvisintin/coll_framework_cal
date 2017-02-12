@@ -1,6 +1,7 @@
 require(ggplot2)
 require(reshape2)
 require(foreach)
+require(data.table)
 
 load("output/cal_coll_glm")
 load("output/cal_coll_model_data")
@@ -141,4 +142,38 @@ ggplot(cal.cor.df.250,aes(x=x/4,y=y,group=as.factor(n))) +
   #scale_y_continuous(breaks=seq(-1,1,by=.2), expand = c(0, 0), lim=c(-1,1)) +
   scale_x_continuous(breaks=seq(.25, 5, .25)) +
   annotate("text",  x=.25, y=max(cal.cor.df.250$y), label = "Mule Deer", hjust=0)
+dev.off()
+
+
+################For Vic BioConf talk############################
+
+tspd <- data.frame(x=seq(0.01,75,0.1), y=invcloglog(cbind(1,mean(log(data[,deer])),mean(log(data[,tvol])),mean((log(data[,tvol]))*(log(data[,tvol]))),log(tspd.range)) %*% coef(coll.glm)[1:5]))
+
+tspd.fit <- predict.glm(coll.glm,data.frame(deer=mean(data$deer),tvol=mean(data$tvol),tspd=seq(0.01,75,0.1)),type="response",se.fit=TRUE)
+tspd <- data.frame(x=seq(0.01,75,0.1),y=tspd.fit[["fit"]],ymin=tspd.fit[["fit"]]-1.96*tspd.fit[["se.fit"]],ymax=tspd.fit[["fit"]]+1.96*tspd.fit[["se.fit"]])
+
+tspd$y <- (tspd$y/(data[coll==1,.N]/nrow(data)))/nrow(data)
+
+
+
+pdf('/home/casey/Research/Projects/VicBioConf/graphics/tspd2.pdf', pointsize = 16)
+ggplot(tspd, aes(x=x*1.6,y=y)) +
+  geom_line(size=0.2) +
+  #geom_ribbon(alpha=0.3) +
+  #geom_smooth(size=0.8, se=FALSE, col="black", aes(group=1), n=10000) +
+  #ylab("Likelihood of Collision") +
+  ylab("Relative Collision Rate") +
+  xlab("Traffic Speed (km/hour)") +
+  #theme(legend.position="none") +
+  theme_bw() +
+  theme(legend.key = element_blank()) +
+  theme(plot.margin=unit(c(.5,.5,.1,.1),"cm")) +
+  theme(axis.title.x = element_text(margin=unit(c(.3,0,0,0),"cm"))) +
+  theme(axis.title.y = element_text(margin=unit(c(0,.3,0,0),"cm"))) +
+  theme(panel.grid.major = element_line(size=0.1),panel.grid.minor = element_line(size=0.1)) +
+  theme(text = element_text(size = 16)) +
+  scale_x_continuous(breaks=seq(0,120,by=20), expand = c(0, 0), lim=c(0,120)) #+
+  #annotate("text",  x=45, y=max(tspd$y), label = "Mule Deer", hjust=0)
+  #scale_y_continuous(breaks=seq(0,1,by=.1), expand = c(0, 0), lim=c(0,1)) #+
+#guides(colour=FALSE)
 dev.off()

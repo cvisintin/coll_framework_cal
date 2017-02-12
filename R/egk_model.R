@@ -34,9 +34,85 @@ sdm.colors = colorRampPalette(c("white","red")) #Define color scheme for plottin
 
 set.seed(123) #Set random seed to make results of gradient boosted regressions identical for each run
 
-kang.brt = gbm.step(data = model.data, gbm.x = 4:12, gbm.y = 3, family = "bernoulli", tree.complexity = 5, learning.rate = 0.005, bag.fraction = 0.5) #Create boosted regression tree model
+kang.brt = gbm.step(data = model.data, gbm.x = 5:11, gbm.y = 3, family = "bernoulli", tree.complexity = 5, learning.rate = 0.005, bag.fraction = 0.5, prev.stratify = FALSE) #Create boosted regression tree model
 save(kang.brt,file="output/vic_brt")
 summary(kang.brt)
+
+###########################With spatial cross-validation##########################
+kang.brt2 = gbm.step(data = model.data, gbm.x = 5:11, gbm.y = 3, family = "bernoulli", tree.complexity = 5, learning.rate = 0.005, bag.fraction = 0.5, prev.stratify = FALSE, fold.vector=model.data$FOLD, n.folds=length(unique(model.data$FOLD))) #Create boosted regression tree model
+
+
+library("devtools")
+install_github("gbm-developers/gbm")
+
+set.seed(123)
+
+kang.brt2 = gbm(OCC ~ ELEV +
+                 GREEN +
+                 LIGHT +
+                 MNTEMPWQ +
+                 PRECDM +
+                 SLOPE +
+                 TREEDENS +
+                 X +
+                 Y,
+                data = model.data,
+                interaction.depth = 5,
+                shrinkage = 0.005,
+                bag.fraction = 0.5,
+                n.trees = 12000,
+                cv.folds = 10,
+                distribution='bernoulli')
+
+trees2 <- gbm.perf(kang.brt2, plot.it=TRUE, method='cv')
+
+print(pretty.gbm.tree(kang.brt2, trees2))
+
+#Report reduction in deviance on null model (percent of error explained by model)
+brt.devexp2 <- paste(round(((kang.brt2[["self.statistics"]][["mean.null"]] - kang.brt2[["cv.statistics"]][["deviance.mean"]])/kang.brt2[["self.statistics"]][["mean.null"]])*100,2)," +/- ",round((kang.brt2[["cv.statistics"]][["deviance.se"]]/kang.brt2[["self.statistics"]][["mean.null"]])*100,2),sep="")
+brt.devexp2
+
+#Report discrimination performance of model in area under receiver operator characteristic curve
+brt.roc2 <- paste(round(kang.brt2[["cv.statistics"]][["discrimination.mean"]],2)," +/- ",round(kang.brt2[["cv.statistics"]][["discrimination.se"]],2),sep="")
+brt.roc2
+
+kang.brt2
+preds2 <- predict(kang.brt2, model.data, n.trees=trees2)
+summary(lm(preds2 ~ model.data$OCC))$adj.r.squared
+
+print(sum((model.data$OCC-preds2)^2))
+
+calibrate_plot(model.data$OCC, preds2)
+gbm_roc_area(model.data$OCC, preds2)
+mean(iteration_error(kang.brt2, which = c("cv")))
+
+plot(kang.brt2, var_index = 1, trees2)
+
+
+kang.brt3 = gbm(OCC ~ ELEV +
+                  GREEN +
+                  LIGHT +
+                  MNTEMPWQ +
+                  PRECDM +
+                  SLOPE +
+                  TREEDENS +
+                  X +
+                  Y,
+                data = model.data,
+                interaction.depth = 5,
+                shrinkage = 0.005,
+                bag.fraction = 0.5,
+                n.trees = 12000,
+                fold.id = model.data$ID,
+                distribution='bernoulli')
+
+trees3 <- gbm.perf(kang.brt3, plot.it=TRUE, method='cv')
+
+kang.brt3
+preds3 <- predict(kang.brt3, model.data, n.trees=trees3)
+summary(lm(preds3 ~ model.data$OCC))$adj.r.squared
+
+##################################################################################
 
 #Report reduction in deviance on null model (percent of error explained by model)
 brt.devexp <- paste(round(((kang.brt[["self.statistics"]][["mean.null"]] - kang.brt[["cv.statistics"]][["deviance.mean"]])/kang.brt[["self.statistics"]][["mean.null"]])*100,2)," +/- ",round((kang.brt[["cv.statistics"]][["deviance.se"]]/kang.brt[["self.statistics"]][["mean.null"]])*100,2),sep="")
