@@ -24,10 +24,10 @@ con <- dbConnect(drv, dbname="qaeco_spatial", user="qaeco", password="Qpostgres1
 
 roads <- as.data.table(dbGetQuery(con,"
   SELECT
-    r.uid as uid, ST_X(r.geom) AS x, ST_Y(r.geom) AS y
+    r.uid AS uid, r.length AS length, ST_X(r.geom) AS x, ST_Y(r.geom) AS y
   FROM
 	  (SELECT
-      uid, ST_ClosestPoint(geom, ST_Centroid(geom)) AS geom
+      uid, ST_Length(geom)/1000 AS length, ST_ClosestPoint(geom, ST_Centroid(geom)) AS geom
 		FROM
       gis_california.cal_nad8310_roads_study) AS r
   "))
@@ -130,7 +130,7 @@ data <- data[!duplicated(data[,.(x,y)]),]
 # 
 #########################################################################
 
-coll.glm <- glm(formula = coll ~ log(deer) + log(tvol) + I(log(tvol)^2) + log(tspd), family=binomial(link = "cloglog"), data = data)  #Fit regression model
+coll.glm <- glm(formula = coll ~ log(deer) + log(tvol) + I(log(tvol)^2) + log(tspd), offset=log(length), family=binomial(link = "cloglog"), data = data)  #Fit regression model
 
 summary(coll.glm)  #Examine fit of regression model
 
@@ -243,14 +243,14 @@ val.pred.glm <- predict(coll.glm, val.data, type="link")  #Make predictions with
 
 summary(glm(val.data$coll ~ val.pred.glm, family = binomial(link = "cloglog")))  #slope is close to ine therefore model is well calibrated to external data after accounting for multiplicative differences
 
-exp(0.34639) #collisions are more abundant in validation set
+exp(0.52901) #collisions are more abundant in validation set
 
 summary(glm(val.data$coll~val.pred.glm, offset=val.pred.glm, family=binomial(link = "cloglog"))) #slope is not significantly different from 1 (difference of slopes = 0)
 
 #p <- predict(glm(val.data$coll~1, offset=val.pred.glm, family=binomial(link = "cloglog")), type="response")
 #p2 <-  predict(coll.glm, val.data, type="response")
 #p3 <- predict(glm(val.data$coll~val.pred.glm, family=binomial(link = "cloglog")), type="response")
-#roc.val <- roc(val.data$coll, predict(coll.glm, val.data, type="response"))  #Compare collision records to predictions using receiver operator characteristic (ROC) function and report value
+roc(val.data$coll, predict(coll.glm, val.data, type="response"))  #Compare collision records to predictions using receiver operator characteristic (ROC) function and report value
 
 #0.95746    0.05074  18.870   <2e-16 ***
 
@@ -261,3 +261,23 @@ summary(glm(val.data$coll~val.pred.glm, offset=val.pred.glm, family=binomial(lin
 
 #require(survival)
 #coxph(Surv(rep(0,nrow(data)),rep(1,nrow(data)),data$coll)~log(egk) + log(tvol) + I(log(tvol)^2) + log(tspd), data=data)
+
+######################Get expected number of collisions for the top twenty road segments###############
+top.segments <- as.data.table(dbGetQuery(con,"
+  SELECT
+    r.uid, r.fullname AS name, p.collrisk/(ST_Length(r.geom)/1000)/6 AS collrisk, ST_AsText(ST_LineInterpolatePoint(ST_LineMerge(r.geom),0.5)) AS xy_coordinates
+  FROM
+	gis_california.cal_nad8310_roads_study AS r,
+	gis_california.cal_nogeom_roads_deercollrisk AS p
+  WHERE
+	r.uid = p.uid
+  AND
+  r.fullname IS NOT NULL
+  ORDER BY collrisk DESC
+  LIMIT 20
+  "))
+top.segments$xy_coordinates <- gsub("POINT\\(", "", top.segments$xy_coordinates)
+top.segments$xy_coordinates <- gsub("\\)", "", top.segments$xy_coordinates)
+top.segments$xy_coordinates <- gsub(" ", ", ", top.segments$xy_coordinates)
+
+write.csv(top.segments, file = "output/cal_coll_segments.csv", row.names=FALSE)
