@@ -1,6 +1,8 @@
 require(ggplot2)
 require(reshape2)
 require(foreach)
+require(png)
+require(grid)
 
 load("output/vic_coll_glm")
 load("output/vic_coll_model_data")
@@ -8,6 +10,9 @@ load("output/vic_coll_cor_1000")
 load("output/vic_coll_cor_250")
 
 #plotPal <- c("#94d1c7")
+
+#k_img <- readPNG(system.file("img", "egk.png", package="png"))
+#k <- rasterGrob(k_img, interpolate=TRUE)
 
 invcloglog <- function (x) {1-exp(-exp(x))}
 
@@ -22,7 +27,7 @@ invcloglog <- function (x) {1-exp(-exp(x))}
 
 occ.range <- seq(0,1,1/(nrow(data)+1))[-c(1,length(seq(0,1,1/(nrow(data)+1))))]
 
-occ.fit <- predict.glm(coll.glm,data.frame(egk=occ.range,tvol=mean(data$tvol),tspd=mean(data$tspd)),type="response",se.fit=TRUE)
+occ.fit <- predict.glm(coll.glm,data.frame(egk=occ.range,tvol=mean(data$tvol),tspd=mean(data$tspd),length=1),type="response",se.fit=TRUE)
 occ <- data.frame(x=occ.range,y=occ.fit[["fit"]],ymin=occ.fit[["fit"]]-1.96*occ.fit[["se.fit"]],ymax=occ.fit[["fit"]]+1.96*occ.fit[["se.fit"]])
 
 tiff('figs/vic_occ.tif', pointsize = 12, compression = "lzw", res=300, width = 900, height = 900)
@@ -42,6 +47,7 @@ ggplot(occ, aes(x=x,y=y,ymin=ymin,ymax=ymax)) +
   theme(text = element_text(size = 10)) +
   scale_x_continuous(breaks=seq(0,1,by=.1), expand = c(0, 0), lim=c(0,1)) +
   annotate("text",  x=.05*max(occ$x), y=max(occ$y), label = "Kangaroos", hjust=0)
+  #annotation_custom(k, xmin=0.7, xmax=0.85, ymin=0, ymax=0.05)  
   #scale_y_continuous(breaks=seq(0,.05,by=.005), expand = c(0, 0), lim=c(0,.05)) #+
   #guides(colour=FALSE)
 dev.off()
@@ -55,7 +61,7 @@ dev.off()
 
 tvol.range <- seq(0,40000,40000/(nrow(data)+1))[-c(1,length(seq(0,40000,40000/(nrow(data)+1))))]
 
-tvol.fit <- predict.glm(coll.glm,data.frame(egk=mean(data$egk),tvol=tvol.range,tspd=mean(data$tspd)),type="response",se.fit=TRUE)
+tvol.fit <- predict.glm(coll.glm,data.frame(egk=mean(data$egk),tvol=tvol.range,tspd=mean(data$tspd),length=1),type="response",se.fit=TRUE)
 tvol <- data.frame(x=tvol.range,y=tvol.fit[["fit"]],ymin=tvol.fit[["fit"]]-1.96*tvol.fit[["se.fit"]],ymax=tvol.fit[["fit"]]+1.96*tvol.fit[["se.fit"]])
 
 tiff('figs/vic_tvol.tif', pointsize = 12, compression = "lzw", res=300, width = 900, height = 900)
@@ -74,7 +80,8 @@ ggplot(tvol, aes(x=x/1000,y=y,ymin=ymin,ymax=ymax)) +
   theme(panel.grid.major = element_line(size=0.1),panel.grid.minor = element_line(size=0.1)) +
   theme(text = element_text(size = 10)) +
   scale_x_continuous(breaks=seq(0,40,by=5), expand = c(0, 0), lim=c(0,40)) +
-  annotate("text",  x=(.05*max(tvol$x))/1000, y=.2*max(tvol$y), label = "Kangaroos", hjust=0)
+  annotate("text",  x=(.05*max(tvol$x))/1000, y=.1*max(tvol$y), label = "Kangaroos", hjust=0)
+  #annotation_custom(k, xmin=5, xmax=12, ymin=0, ymax=0.01) 
   #scale_y_continuous(breaks=seq(0,.05,by=.005), expand = c(0, 0), lim=c(0,.05)) #+
   #guides(colour=FALSE)
 dev.off()
@@ -88,7 +95,7 @@ dev.off()
 
 tspd.range <- seq(40,110,70/(nrow(data)+1))[-c(1,length(seq(40,110,70/(nrow(data)+1))))]
 
-tspd.fit <- predict.glm(coll.glm,data.frame(egk=mean(data$egk),tvol=mean(data$tvol),tspd=tspd.range),type="response",se.fit=TRUE)
+tspd.fit <- predict.glm(coll.glm,data.frame(egk=mean(data$egk),tvol=mean(data$tvol),tspd=tspd.range,length=1),type="response",se.fit=TRUE)
 tspd <- data.frame(x=tspd.range,y=tspd.fit[["fit"]],ymin=tspd.fit[["fit"]]-1.96*tspd.fit[["se.fit"]],ymax=tspd.fit[["fit"]]+1.96*tspd.fit[["se.fit"]])
 
 tiff('figs/vic_tspd.tif', pointsize = 12, compression = "lzw", res=300, width = 900, height = 900)
@@ -108,6 +115,7 @@ ggplot(tspd, aes(x=x,y=y,ymin=ymin,ymax=ymax)) +
   theme(text = element_text(size = 10)) +
   scale_x_continuous(breaks=seq(40,110,by=10), expand = c(0, 0), lim=c(40,110)) +
   annotate("text",  x=45, y=max(tspd$y), label = "Kangaroos", hjust=0)
+  #annotation_custom(k, xmin=90, xmax=100, ymin=.1*range(tspd$y), ymax=.2*range(tspd$y)) 
   #scale_y_continuous(breaks=seq(0,.05,by=.005), expand = c(0, 0), lim=c(0,.05)) #+
   #guides(colour=FALSE)
 dev.off()

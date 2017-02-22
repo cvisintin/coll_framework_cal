@@ -2,14 +2,18 @@ require(ggplot2)
 require(reshape2)
 require(foreach)
 require(data.table)
+require(png)
+require(grid)
 
 load("output/cal_coll_glm")
 load("output/cal_coll_model_data")
 load("output/cal_coll_cor_1000")
 load("output/cal_coll_cor_250")
 
-
 #plotPal <- c("#b3de69")
+
+#d_img <- readPNG(system.file("img", "deer.png", package="png"))
+#d <- rasterGrob(d_img, interpolate=TRUE)
 
 invcloglog <- function (x) {1-exp(-exp(x))}
 
@@ -19,7 +23,7 @@ invcloglog <- function (x) {1-exp(-exp(x))}
 
 occ.range <- seq(0,1,1/(nrow(data)+1))[-c(1,length(seq(0,1,1/(nrow(data)+1))))]
 
-occ.fit <- predict.glm(coll.glm,data.frame(deer=occ.range,tvol=mean(data$tvol),tspd=mean(data$tspd)),type="response",se.fit=TRUE)
+occ.fit <- predict.glm(coll.glm,data.frame(deer=occ.range,tvol=mean(data$tvol),tspd=mean(data$tspd),length=1),type="response",se.fit=TRUE)
 occ <- data.frame(x=occ.range,y=occ.fit[["fit"]],ymin=occ.fit[["fit"]]-1.96*occ.fit[["se.fit"]],ymax=occ.fit[["fit"]]+1.96*occ.fit[["se.fit"]])
 
 tiff('figs/cal_occ.tif', pointsize = 12, compression = "lzw", res=300, width = 900, height = 900)
@@ -51,7 +55,7 @@ dev.off()
 
 tvol.range <- seq(0,40000,40000/(nrow(data)+1))[-c(1,length(seq(0,40000,40000/(nrow(data)+1))))]
 
-tvol.fit <- predict.glm(coll.glm,data.frame(deer=mean(data$deer),tvol=tvol.range,tspd=mean(data$tspd)),type="response",se.fit=TRUE)
+tvol.fit <- predict.glm(coll.glm,data.frame(deer=mean(data$deer),tvol=tvol.range,tspd=mean(data$tspd),length=1),type="response",se.fit=TRUE)
 tvol <- data.frame(x=tvol.range,y=tvol.fit[["fit"]],ymin=tvol.fit[["fit"]]-1.96*tvol.fit[["se.fit"]],ymax=tvol.fit[["fit"]]+1.96*tvol.fit[["se.fit"]])
 
 tiff('figs/cal_tvol.tif', pointsize = 12, compression = "lzw", res=300, width = 900, height = 900)
@@ -71,7 +75,7 @@ ggplot(tvol, aes(x=x/1000,y=y,ymin=ymin,ymax=ymax)) +
   theme(panel.grid.major = element_line(size=0.1),panel.grid.minor = element_line(size=0.1)) +
   theme(text = element_text(size = 10)) +
   scale_x_continuous(breaks=seq(0,40,by=5), expand = c(0, 0), lim=c(0,40)) +
-  annotate("text",  x=(.05*max(tvol$x))/1000, y=.2*max(tvol$y), label = "Mule Deer", hjust=0)
+  annotate("text",  x=(.05*max(tvol$x))/1000, y=.1*max(tvol$y), label = "Mule Deer", hjust=0)
   #scale_y_continuous(breaks=seq(0,1,by=.1), expand = c(0, 0), lim=c(0,1)) #+
   #guides(colour=FALSE)
 dev.off()
@@ -83,7 +87,7 @@ dev.off()
 
 tspd.range <- seq(25,68.75,43.75/(nrow(data)+1))[-c(1,length(seq(25,68.75,43.75/(nrow(data)+1))))]
 
-tspd.fit <- predict.glm(coll.glm,data.frame(deer=mean(data$deer),tvol=mean(data$tvol),tspd=tspd.range),type="response",se.fit=TRUE)
+tspd.fit <- predict.glm(coll.glm,data.frame(deer=mean(data$deer),tvol=mean(data$tvol),tspd=tspd.range,length=1),type="response",se.fit=TRUE)
 tspd <- data.frame(x=tspd.range,y=tspd.fit[["fit"]],ymin=tspd.fit[["fit"]]-1.96*tspd.fit[["se.fit"]],ymax=tspd.fit[["fit"]]+1.96*tspd.fit[["se.fit"]])
 
 tiff('figs/cal_tspd.tif', pointsize = 12, compression = "lzw", res=300, width = 900, height = 900)
