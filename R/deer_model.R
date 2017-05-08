@@ -9,24 +9,6 @@ require(rgdal)
 require(rgeos)
 require(scales)
 
-# grid.files <- list.files(path='data/grids/cal/envi') #Create vector of filenames
-# grid.names <- substring(unlist(strsplit(grid.files,"\\_1000."))[(1:(2*(length(grid.files)))*2)-1][1:length(grid.files)],18) #Create vector of covariate names
-# 
-# cal.rst.study <- raster("data/grids/cal/CAL_NAD8310_GRID_STUDY_1000.tif")
-# #cal.rst.state <- raster("data/grids/cal/CAL_NAD8310_GRID_STATE_1000.tif")
-# clip.study <- extent(445000,1165000,3962000,4329000) #Define clipping extent of maps
-# #clip.state <- extent(374000,1318000,3613000,4654000)
-# 
-# #Read in grids, crop, and multiply with template to create consistent covariate maps
-# for (i in 1:length(grid.files)) {
-#   temp <- raster(paste0("data/grids/cal/envi/",grid.files[i]))
-#   #temp <- crop(temp, clip.state)
-#   #assign(grid.names[i],temp * cal.rst.state)
-#   temp <- crop(temp, clip.study)
-#   assign(grid.names[i],temp * cal.rst.study)
-# }
-# vars <- stack(c(mget(grid.names),"X"=X,"Y"=Y)) #Combine all maps to single stack
-
 #Read in modelling dataset
 model.data <- read.csv("data/cal_model_data_sdm.csv", header=T, sep=",")
 

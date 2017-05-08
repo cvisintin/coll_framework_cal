@@ -70,66 +70,6 @@ data[data1, coll := i.coll]
 data <- na.omit(data)
 data <- data[!duplicated(data[,.(x,y)]),]
 
-# ##########Added code for 1000 simulations and model averaging#############
-# set.seed(123)
-# rns <- sample(1:10000, 1000, replace=F)
-# 
-# models1000 <- foreach(i = 1:length(rns)) %do% {
-#   set.seed(rns[i])
-#   data0 <- cbind(cov.data[sample(seq(1:nrow(cov.data)),2*nrow(data1)),],"coll"=rep(0,2*nrow(data1)))
-#   model.data <- rbind(data1,data0)
-#   model.data <- na.omit(model.data)
-#   coll.glm <- glm(formula = coll ~ log(deer) + log(tvol) + I(log(tvol)^2) + log(tspd), family=binomial(link = "cloglog"), data = model.data)
-#   list("coefs"=coef(summary(coll.glm))[, "Estimate"],
-#        "coefs_se"=coef(summary(coll.glm))[, "Std. Error"],
-#        "zvalue"=coef(summary(coll.glm))[, "z value"],
-#        "coefs_prz"=coef(summary(coll.glm))[, "Pr(>|z|)"],
-#        "devred"=round(((coll.glm$null.deviance - coll.glm$deviance)/coll.glm$null.deviance)*100,2),
-#        "rocvalue"=roc(model.data$coll,coll.glm$fitted.values),
-#        "data"=model.data,
-#        "nbg"=length(model.data$coll[model.data$coll==0])
-#   )
-# }
-# save(models1000,file="output/cal_coll_glm_1000")
-# 
-# mean(sapply(models1000, function(x){x[["nbg"]]}))
-# sd(sapply(models1000, function(x){x[["nbg"]]}))
-# 
-# mean(sapply(models1000, function(x){x[["devred"]]}))
-# sd(sapply(models1000, function(x){x[["devred"]]}))
-# 
-# mean(sapply(models1000, function(x){x[["rocvalue"]]}))
-# sd(sapply(models1000, function(x){x[["rocvalue"]]}))
-# 
-# summary1000 <- matrix(NA, nrow=5, ncol=4)
-# 
-# for(i in 1:nrow(summary1000)){
-#   summary1000[i,1] <- paste0(formatC(signif(mean(sapply(models1000, function(x){x[["coefs"]][i]})),digits=3), digits=3, format="fg", flag="#"))#, " (s.d. ", round(sd(sapply(models1000, function(x){x[["coefs"]][i]})),2), ")")
-#   summary1000[i,2] <- paste0(formatC(signif(mean(sapply(models1000, function(x){x[["coefs_se"]][i]})),digits=3), digits=3, format="fg", flag="#"))#, " (s.d. ", round(sd(sapply(models1000, function(x){x[["coefs_se"]][i]})),2), ")")
-#   summary1000[i,3] <- paste0(formatC(signif(mean(sapply(models1000, function(x){x[["zvalue"]][i]})),digits=3), digits=3, format="fg", flag="#"))#, " (s.d. ", round(sd(sapply(models1000, function(x){x[["zvalue"]][i]})),2), ")")
-#   summary1000[i,4] <- paste0(signif(mean(sapply(models1000, function(x){x[["coefs_prz"]][i]})),3))#, " (s.d. ", round(sd(sapply(models1000, function(x){x[["coefs_prz"]][i]})),2), ")")
-# }
-# write.csv(summary1000, file = "output/cal_coll_glm_fit.csv", row.names=FALSE)
-# 
-# preds1000 <- matrix(0, nrow=length(cov.data$uid), ncol=length(rns)+1)
-# preds1000[,1] <- cov.data$uid
-# for(i in 1:length(rns)){
-#   set.seed(rns[i])
-#   data0 <- cbind(cov.data[sample(seq(1:nrow(cov.data)),2*nrow(data1)),],"coll"=rep(0,2*nrow(data1)))
-#   model.data <- rbind(data1,data0)
-#   model.data <- na.omit(model.data)
-#   coll.glm <- glm(formula = coll ~ log(deer) + log(tvol) + I(log(tvol)^2) + log(tspd), family=binomial(link = "cloglog"), data = model.data)
-#   preds1000[,i+1] <- predict(coll.glm, cov.data, type="response")
-# }
-# 
-# coll.preds.df <- data.frame("uid"=cov.data$uid,"collrisk"=rowMeans(preds1000[,2:1001], na.rm = FALSE))
-# 
-# #write.csv(coll.preds.df, file = "output/cal_coll_preds_glm.csv", row.names=FALSE)
-# 
-# dbWriteTable(con, c("gis_california", "cal_nogeom_roads_deercollrisk_m"), value = coll.preds.df, row.names=FALSE, overwrite=TRUE)
-# 
-#########################################################################
-
 coll.glm <- glm(formula = coll ~ log(deer) + log(tvol) + I(log(tvol)^2) + log(tspd), offset=log(length*10), family=binomial(link = "cloglog"), data = data)  #Fit regression model
 
 summary(coll.glm)  #Examine fit of regression model
@@ -211,7 +151,7 @@ cal.cor.df.250 <- foreach(i = 1:20, .combine=rbind) %dopar% {
 }
 save(cal.cor.df.250,file="output/cal_coll_cor_250")
 
-#################################Validation#################################
+################################# Validation #################################
 
 val.coll <- as.data.table(dbGetQuery(con,"
   SELECT DISTINCT ON (p.id)
@@ -242,31 +182,15 @@ val.data <- val.data[!duplicated(val.data[,.(x,y)]),]
 
 val.pred.glm <- predict(coll.glm, val.data, type="link")  #Make predictions with regression model fit on link scale
 
-#summary(glm(val.data$coll~1, family=binomial(link = "cloglog")))
-#summary(glm(val.data$coll~1, offset=val.pred.glm, family=binomial(link = "cloglog")))
-
 summary(glm(val.data$coll ~ val.pred.glm, family = binomial(link = "cloglog")))  #slope is close to ine therefore model is well calibrated to external data after accounting for multiplicative differences
 
 exp(0.52901) #collisions are more abundant in validation set
 
 summary(glm(val.data$coll~val.pred.glm, offset=val.pred.glm, family=binomial(link = "cloglog"))) #slope is not significantly different from 1 (difference of slopes = 0)
 
-#p <- predict(glm(val.data$coll~1, offset=val.pred.glm, family=binomial(link = "cloglog")), type="response")
-#p2 <-  predict(coll.glm, val.data, type="response")
-#p3 <- predict(glm(val.data$coll~val.pred.glm, family=binomial(link = "cloglog")), type="response")
 roc(val.data$coll, predict(coll.glm, val.data, type="response"))  #Compare collision records to predictions using receiver operator characteristic (ROC) function and report value
 
-#0.95746    0.05074  18.870   <2e-16 ***
-
-#require(rms)
-#val.prob(p, val.data$coll, logistic.cal=FALSE)
-
-#glm(val.data$coll ~ qlogis(p), family = binomial)
-
-#require(survival)
-#coxph(Surv(rep(0,nrow(data)),rep(1,nrow(data)),data$coll)~log(egk) + log(tvol) + I(log(tvol)^2) + log(tspd), data=data)
-
-######################Get expected number of collisions for the top twenty road segments###############
+###################### Get expected number of collisions for the top twenty road segments ###############
 top.segments <- as.data.table(dbGetQuery(con,"
   SELECT
     r.uid, r.fullname AS name, p.collrisk/((ST_Length(r.geom)/1000)*10) AS collrisk, ST_AsText(ST_LineInterpolatePoint(ST_LineMerge(r.geom),0.5)) AS xy_coordinates

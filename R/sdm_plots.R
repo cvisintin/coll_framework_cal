@@ -5,9 +5,6 @@ require(dismo)
 load("output/vic_brt")
 load("output/cal_brt")
 
-#read.csv("data/vic_model_data_sdm.csv", header=T, sep=",")
-#read.csv("data/cal_model_data_sdm.csv", header=T, sep=",")
-
 #plot effect of light for kangaroos
 light <- plot.gbm(kang.brt, i.var="LIGHT",return.grid=TRUE, type="response")
 colnames(light) <- c("x","y")

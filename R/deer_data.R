@@ -8,10 +8,10 @@ require(raster)
 require(RPostgreSQL)
 require(fields)
 
-thin.algorithm <- function (rec.df.orig, thin.par, reps) 
+thin.algorithm <- function (rec.df.orig, thin.par, reps) # function slightly adapted from https://github.com/cran/spThin/blob/master/R/thin.algorithm.R
 {
   reduced.rec.dfs <- list()
-  for (Rep in 1:reps) {
+  for (i in 1:reps) {
     rec.df <- rec.df.orig
     DistMat <- rdist(x1 = rec.df)
     diag(DistMat) <- NA
@@ -31,7 +31,7 @@ thin.algorithm <- function (rec.df.orig, thin.par, reps)
       }
     }
     colnames(rec.df) <- c("x", "y")
-    reduced.rec.dfs[[Rep]] <- rec.df
+    reduced.rec.dfs[[i]] <- rec.df
   }
   locs.thinned <- reduced.rec.dfs
   y.x.thin.count <- unlist(lapply(locs.thinned, nrow))
@@ -71,21 +71,6 @@ for (i in 1:length(grid.files)) {
 vars <- stack(c(mget(grid.names),"X"=X,"Y"=Y)) #Combine all maps to single stack
 save(vars,file="data/cal_study_vars")
 
-data0 <- read.csv("data/cal_study_bg_data_pts.csv")
-
-#Specify study boundary for species records query
-# boundary <- readShapePoly("data/grids/cal/CAL_NAD83LL_ADMIN_STATE_SIMPLE.shp") #California shapefile for query boundary (projected in NAD83 (EPSG:4269))
-
-#Create WKT string
-# wkt <- writeWKT(boundary, byid = FALSE)
-
-#For complex shapes - simplify for query using convex hull
-# lonlat<- boundary@polygons[[1]]@Polygons[[1]]@coords ## extract the polygon coordinates
-# temp <- chull(lonlat) ## extract the convex hull of the polygon to reduce the length of the WKT string
-# lonlat <- lonlat[c(temp,temp[1]),]  ## overwrite the coordinates
-# wkt <- paste("POLYGON((",paste(apply(lonlat,1,function(z) paste(z,collapse=" ")),collapse=","),"))",sep="") ## create WKT string
-# rm(lonlat,temp)
-
 # Query database study boundary for species records
 wkt <- as.character(dbGetQuery(con,"
   SELECT
@@ -116,6 +101,8 @@ yr.end <- 2015
 sp.data <- occ_search(scientificName = paste(sp.target), hasCoordinate = TRUE, basisOfRecord = "HUMAN_OBSERVATION", geometry = wkt, year = paste(yr.start,",",yr.end,sep=""), hasGeospatialIssue = FALSE, limit = 1000, start = 0, fields=c('scientificName','decimalLatitude','decimalLongitude','year','month','day'), return = "data")
 sp.data <- as.data.table(sp.data)
 
+########### Alternative background sampling protocol - Construct species datsets using reported target species locations as presences (1's) and sites where multiple species were observed excluding target species as background (0's)
+############## 
 #Download background species data - setup parallel data retrieval workers (split over multiple years to reduce server load and address server allowances (i.e. multiple queries originating from identical IP address)) - capped at 200,000 we set the limit to 10,000 x 15 years = 150,000
 # registerDoMC(detectCores() - 1)
 # 
@@ -139,11 +126,13 @@ sp.data <- as.data.table(sp.data)
 
 #sites.tax <- sites.spp[MULT == TRUE]
 
-#Construct species datsets using reported target species locations as presences (1's) and sites where multiple species were observed excluding target species as background (0's)
-sites.1 <- sp.data[, .N, by="decimalLongitude,decimalLatitude"]
 #sites.0 <- sites.tax[!like(SPP,sp.target)]
-x1 <- cbind(sites.1[,.("LON"=decimalLongitude,"LAT"=decimalLatitude)],"OCC"=rep(1,nrow(sites.1)))
 #x0 <- cbind(sites.0[,.("LON"=decimalLongitude,"LAT"=decimalLatitude)],"OCC"=rep(0,nrow(sites.0)))
+
+sites.1 <- sp.data[, .N, by="decimalLongitude,decimalLatitude"]
+
+x1 <- cbind(sites.1[,.("LON"=decimalLongitude,"LAT"=decimalLatitude)],"OCC"=rep(1,nrow(sites.1)))
+
 #sp.model.data <- rbind(x1,x0)
 #write.table(sp.model.data, file = "sp_model_data_ll.csv", row.names=FALSE, col.names=TRUE, sep=",")
 
@@ -154,11 +143,10 @@ ll <- SpatialPoints(x1[,.(LON,LAT)], proj4string=CRS("+init=epsg:4269"))
 UTM <- data.frame(spTransform(ll, coord.sys))
 names(UTM) <- c('X','Y')
 
-#data1 <- as.data.table(cbind(UTM,"OCC"=x1[,OCC]))
-#deer.data <- rbind(data1,data0)
-
 data1.1 <- thin.algorithm(UTM, 1000, 50)
 data1.1 <- as.data.table(cbind(data1.1,"OCC"=1))
+
+data0 <- read.csv("data/cal_study_bg_data_pts.csv")
 
 deer.data <- rbind(data1.1,data0)
 colnames(deer.data)[1:2] <- c("XCOORD","YCOORD")
@@ -171,6 +159,5 @@ final.data <- cbind(deer.data,samples.df)
 
 #Remove any records with missing information - occurs where sampling detected NAs in grids
 final.data <- na.omit(final.data)
-
 
 write.table(final.data, file = "data/cal_model_data_sdm.csv", row.names=FALSE, col.names=TRUE, sep=",")

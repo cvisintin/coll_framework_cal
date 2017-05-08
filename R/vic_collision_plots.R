@@ -9,21 +9,7 @@ load("output/vic_coll_model_data")
 load("output/vic_coll_cor_1000")
 load("output/vic_coll_cor_250")
 
-#plotPal <- c("#94d1c7")
-
-#k_img <- readPNG(system.file("img", "egk.png", package="png"))
-#k <- rasterGrob(k_img, interpolate=TRUE)
-
 invcloglog <- function (x) {1-exp(-exp(x))}
-
-# m.coef <- coef(coll.glm)
-# m.coef.ci <- confint.default(coll.glm)
-
-# occ <- data.frame(x=coll.glm[["data"]][["egk"]],
-#                   y=invcloglog(cbind(1,log(coll.glm[["data"]][["egk"]]),mean(log(coll.glm[["data"]][["tvol"]])),mean((log(coll.glm[["data"]][["tvol"]]))*(log(coll.glm[["data"]][["tvol"]]))),mean(log(coll.glm[["data"]][["tspd"]]))) %*% m.coef),
-#                   ymax=invcloglog(cbind(1,log(coll.glm[["data"]][["egk"]]),mean(log(coll.glm[["data"]][["tvol"]])),mean((log(coll.glm[["data"]][["tvol"]]))*(log(coll.glm[["data"]][["tvol"]]))),mean(log(coll.glm[["data"]][["tspd"]]))) %*% c(m.coef[1],m.coef.ci[2,2],m.coef[3:5])),
-#                   ymin=invcloglog(cbind(1,log(coll.glm[["data"]][["egk"]]),mean(log(coll.glm[["data"]][["tvol"]])),mean((log(coll.glm[["data"]][["tvol"]]))*(log(coll.glm[["data"]][["tvol"]]))),mean(log(coll.glm[["data"]][["tspd"]]))) %*% c(m.coef[1],m.coef.ci[2,1],m.coef[3:5]))
-#                   )
 
 occ.range <- seq(0,1,1/(nrow(data)+1))[-c(1,length(seq(0,1,1/(nrow(data)+1))))]
 
@@ -34,10 +20,8 @@ tiff('figs/vic_occ.tif', pointsize = 12, compression = "lzw", res=300, width = 9
 ggplot(occ, aes(x=x,y=y,ymin=ymin,ymax=ymax)) +
   geom_line(size=0.3) +
   geom_ribbon(alpha=0.3) +
-  #geom_smooth(size=0.8, se=FALSE, col="black", aes(group=1), n=10000) +
   ylab("Likelihood of Collision") +
   xlab("Likelihood of Species Occurrence") +
-  #theme(legend.position="none") +
   theme_bw() +
   theme(legend.key = element_blank()) +
   theme(plot.margin=unit(c(.5,.5,.1,.1),"cm")) +
@@ -47,17 +31,8 @@ ggplot(occ, aes(x=x,y=y,ymin=ymin,ymax=ymax)) +
   theme(text = element_text(size = 10)) +
   scale_x_continuous(breaks=seq(0,1,by=.1), expand = c(0, 0), lim=c(0,1)) +
   annotate("text",  x=.05*max(occ$x), y=max(occ$y), label = "Kangaroos", hjust=0)
-  #annotation_custom(k, xmin=0.7, xmax=0.85, ymin=0, ymax=0.05)  
-  #scale_y_continuous(breaks=seq(0,.05,by=.005), expand = c(0, 0), lim=c(0,.05)) #+
-  #guides(colour=FALSE)
 dev.off()
 
-
-# tvol <- data.frame(x=coll.glm[["data"]][["tvol"]],
-#                    y=invcloglog(cbind(1,mean(log(coll.glm[["data"]][["egk"]])),log(coll.glm[["data"]][["tvol"]]),(log(coll.glm[["data"]][["tvol"]]))*(log(coll.glm[["data"]][["tvol"]])),mean(log(coll.glm[["data"]][["tspd"]]))) %*% m.coef),
-#                    ymax=invcloglog(cbind(1,mean(log(coll.glm[["data"]][["egk"]])),log(coll.glm[["data"]][["tvol"]]),(log(coll.glm[["data"]][["tvol"]]))*(log(coll.glm[["data"]][["tvol"]])),mean(log(coll.glm[["data"]][["tspd"]]))) %*% c(m.coef[1:2],m.coef.ci[3,2],m.coef.ci[4,2],m.coef[5])),
-#                    ymin=invcloglog(cbind(1,mean(log(coll.glm[["data"]][["egk"]])),log(coll.glm[["data"]][["tvol"]]),(log(coll.glm[["data"]][["tvol"]]))*(log(coll.glm[["data"]][["tvol"]])),mean(log(coll.glm[["data"]][["tspd"]]))) %*% c(m.coef[1:2],m.coef.ci[3,1],m.coef.ci[4,1],m.coef[5]))
-#                    )
 
 tvol.range <- seq(0,40000,40000/(nrow(data)+1))[-c(1,length(seq(0,40000,40000/(nrow(data)+1))))]
 
@@ -68,7 +43,6 @@ tiff('figs/vic_tvol.tif', pointsize = 12, compression = "lzw", res=300, width = 
 ggplot(tvol, aes(x=x/1000,y=y,ymin=ymin,ymax=ymax)) +
   geom_line(size=0.3) +
   geom_ribbon(alpha=0.3) +
-  #geom_smooth(size=0.8, se=FALSE, col="black", aes(group=1), n=10000) +
   ylab("Likelihood of Collision") +
   xlab("Traffic Volume (1000 vehicles/day)") +
   theme(legend.position="none") +
@@ -81,17 +55,8 @@ ggplot(tvol, aes(x=x/1000,y=y,ymin=ymin,ymax=ymax)) +
   theme(text = element_text(size = 10)) +
   scale_x_continuous(breaks=seq(0,40,by=5), expand = c(0, 0), lim=c(0,40)) +
   annotate("text",  x=(.05*max(tvol$x))/1000, y=.1*max(tvol$y), label = "Kangaroos", hjust=0)
-  #annotation_custom(k, xmin=5, xmax=12, ymin=0, ymax=0.01) 
-  #scale_y_continuous(breaks=seq(0,.05,by=.005), expand = c(0, 0), lim=c(0,.05)) #+
-  #guides(colour=FALSE)
 dev.off()
 
-
-# tspd <- data.frame(x=coll.glm[["data"]][["tspd"]],
-#                    y=invcloglog(cbind(1,mean(log(coll.glm[["data"]][["egk"]])),mean(log(coll.glm[["data"]][["tvol"]])),mean((log(coll.glm[["data"]][["tvol"]]))*(log(coll.glm[["data"]][["tvol"]]))),log(coll.glm[["data"]][["tspd"]])) %*% m.coef),
-#                    ymax=invcloglog(cbind(1,mean(log(coll.glm[["data"]][["egk"]])),mean(log(coll.glm[["data"]][["tvol"]])),mean((log(coll.glm[["data"]][["tvol"]]))*(log(coll.glm[["data"]][["tvol"]]))),log(coll.glm[["data"]][["tspd"]])) %*% c(m.coef[1:4],m.coef.ci[5,2])),
-#                    ymin=invcloglog(cbind(1,mean(log(coll.glm[["data"]][["egk"]])),mean(log(coll.glm[["data"]][["tvol"]])),mean((log(coll.glm[["data"]][["tvol"]]))*(log(coll.glm[["data"]][["tvol"]]))),log(coll.glm[["data"]][["tspd"]])) %*% c(m.coef[1:4],m.coef.ci[5,1]))
-#                    )
 
 tspd.range <- seq(40,110,70/(nrow(data)+1))[-c(1,length(seq(40,110,70/(nrow(data)+1))))]
 
@@ -102,7 +67,6 @@ tiff('figs/vic_tspd.tif', pointsize = 12, compression = "lzw", res=300, width = 
 ggplot(tspd, aes(x=x,y=y,ymin=ymin,ymax=ymax)) +
   geom_line(size=0.3) +
   geom_ribbon(alpha=0.3) +
-  #geom_smooth(size=0.8, n=10000) +
   ylab("Likelihood of Collision") +
   xlab("Traffic Speed (km/hour)") +
   theme(legend.position="none") +
@@ -115,9 +79,6 @@ ggplot(tspd, aes(x=x,y=y,ymin=ymin,ymax=ymax)) +
   theme(text = element_text(size = 10)) +
   scale_x_continuous(breaks=seq(40,110,by=10), expand = c(0, 0), lim=c(40,110)) +
   annotate("text",  x=45, y=max(tspd$y), label = "Kangaroos", hjust=0)
-  #annotation_custom(k, xmin=90, xmax=100, ymin=.1*range(tspd$y), ymax=.2*range(tspd$y)) 
-  #scale_y_continuous(breaks=seq(0,.05,by=.005), expand = c(0, 0), lim=c(0,.05)) #+
-  #guides(colour=FALSE)
 dev.off()
 
 
@@ -125,16 +86,11 @@ dev.off()
 tiff('figs/vic_coll_cor_1000.tif', pointsize = 12, compression = "lzw", res=300, width = 900, height = 900)
 ggplot(vic.cor.df.1000,aes(x=x,y=y,group=as.factor(n))) +
   geom_line(colour=c("grey50"),size=0.2) +
-  #geom_point(size=1.0) +
   ylab("Moran's I") +
   xlab("Distance (km)") +
-  #labs(shape = "Random Draw") +
   theme_bw() +
-  #theme(legend.key = element_blank()) +
-  #scale_shape_manual(values=shapes) +
   geom_hline(aes(yintercept=0), linetype=2, size=0.3) +
   theme(text = element_text(size = 10), axis.text=element_text(size=6)) +
-  #scale_y_continuous(breaks=seq(-1,1,by=.2), expand = c(0, 0), lim=c(-1,1)) +
   scale_x_continuous(breaks=seq(1, 20, 1)) +
   annotate("text",  x=1, y=max(vic.cor.df.1000$y), label = "Kangaroos", hjust=0)
 dev.off()
@@ -143,17 +99,12 @@ dev.off()
 tiff('figs/vic_coll_cor_250.tif', pointsize = 12, compression = "lzw", res=300, width = 900, height = 900)
 ggplot(vic.cor.df.250,aes(x=x/4,y=y,group=as.factor(n))) +
   geom_line(colour=c("grey50"),size=0.2) +
-  #geom_point(size=1.0) +
   ylab("Moran's I") +
   xlab("Distance (km)") +
-  #labs(shape = "Random Draw") +
   theme_bw() +
-  #theme(legend.key = element_blank()) +
-  #scale_shape_manual(values=shapes) +
   geom_hline(aes(yintercept=0), linetype=2, size=0.3) +
   theme(text = element_text(size = 10), axis.text=element_text(size=6)) +
   theme(axis.text.x = element_text(angle = 90, hjust = 0)) +
-  #scale_y_continuous(breaks=seq(-1,1,by=.2), expand = c(0, 0), lim=c(-1,1)) +
   scale_x_continuous(breaks=seq(.25, 5, .25)) +
   annotate("text",  x=.25, y=max(vic.cor.df.250$y), label = "Kangaroos", hjust=0)
 dev.off()

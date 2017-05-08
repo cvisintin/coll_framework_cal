@@ -7,7 +7,6 @@ con <- dbConnect(drv, dbname="qaeco_spatial", user="qaeco", password="Qpostgres1
 
 dbGetQuery(con,"VACUUM ANALYZE gis_california.cal_nad8310_roads_study")
 
-
 rds.count <- dbGetQuery(con,"
   SELECT
     Max(uid)
