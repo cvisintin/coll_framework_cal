@@ -17,6 +17,10 @@ occ.range <- seq(0,1,1/(nrow(data)+1))[-c(1,length(seq(0,1,1/(nrow(data)+1))))]
 occ.fit <- predict.glm(coll.glm,data.frame(deer=occ.range,tvol=mean(data$tvol),tspd=mean(data$tspd),length=1),type="response",se.fit=TRUE)
 occ <- data.frame(x=occ.range,y=occ.fit[["fit"]],ymin=occ.fit[["fit"]]-1.96*occ.fit[["se.fit"]],ymax=occ.fit[["fit"]]+1.96*occ.fit[["se.fit"]])
 
+#### expected annual collisions across the entire network ####
+#occ <- data.frame(x=occ.range,y=(occ.fit[["fit"]])*sum(data$length)/10,ymin=occ.fit[["fit"]]*sum(data$length)/10-1.96*occ.fit[["se.fit"]]*sum(data$length)/10,ymax=occ.fit[["fit"]]*sum(data$length)/10+1.96*occ.fit[["se.fit"]]*sum(data$length)/10)
+####
+
 tiff('figs/cal_occ.tif', pointsize = 12, compression = "lzw", res=300, width = 900, height = 900)
 ggplot(occ, aes(x=x,y=y,ymin=ymin,ymax=ymax)) +
   geom_line(size=0.2) +

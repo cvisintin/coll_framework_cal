@@ -221,3 +221,18 @@ top.segments$xy_coordinates <- gsub(" ", ", ", top.segments$xy_coordinates)
 top.segments$name <- paste0(toupper(substr(top.segments$name, 1, 1)), tolower(substring(top.segments$name, 2)))
 
 write.csv(top.segments, file = "output/vic_coll_segments.csv", row.names=FALSE)
+
+
+# SELECT
+# r.uid, r.road_name AS name, p.collrisk/((ST_Length(r.geom)/1000)*6) AS collrisk, ST_AsText(ST_LineInterpolatePoint(ST_LineMerge(r.geom),0.5)) AS xy_coordinates, r.geom
+# FROM
+# gis_victoria.vic_gda9455_roads_state AS r,
+# gis_victoria.vic_nogeom_roads_egkcollrisk AS p,
+# gis_victoria.vic_gda9455_admin_sla AS s
+# WHERE
+# r.uid = p.uid
+# AND
+# ST_Intersects(s.geom, r.geom)
+# AND
+# s.sla_name11 LIKE 'Ballarat%'
+# ORDER BY collrisk DESC
