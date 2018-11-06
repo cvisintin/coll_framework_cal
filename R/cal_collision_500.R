@@ -81,6 +81,8 @@ data <- na.omit(data)
 
 data$tspd <- data$tspd * 1.60934
 
+#load(file="output/cal_coll_model_data_500")
+
 apply(data, 2, range)
 
 cor(data[, 3:5])
@@ -228,3 +230,10 @@ top.segments$xy_coordinates <- gsub("\\)", "", top.segments$xy_coordinates)
 top.segments$xy_coordinates <- gsub(" ", ", ", top.segments$xy_coordinates)
 
 write.csv(top.segments, file = "output/cal_coll_segments.csv", row.names=FALSE)
+
+
+##################### Modelling for Victoria #####################################
+coll.glm <- glm(formula = coll ~ log(deer) + log(tvol) + I(log(tvol)^2) + log(tspd), offset=log(length), family=binomial(link = "cloglog"), data = data)  #Fit regression model
+summary(coll.glm)  #Examine fit of regression model
+paste("% Deviance Explained: ",round(((coll.glm$null.deviance - coll.glm$deviance)/coll.glm$null.deviance)*100,2),sep="")  #Report reduction in deviance
+save(coll.glm,file="output/deer_coll_glm_500")
