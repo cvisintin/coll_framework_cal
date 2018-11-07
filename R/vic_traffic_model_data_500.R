@@ -5,7 +5,7 @@ require(doMC)
 drv <- dbDriver("PostgreSQL")  #Specify a driver for postgreSQL type database
 con <- dbConnect(drv, dbname="qaeco_spatial", user="qaeco", password="Qpostgres15", host="boab.qaeco.com", port="5432")  #Connection to database server on Boab
 
-dbGetQuery(con,"VACUUM ANALYZE gis_victoria.vic_gda9455_roads_state_orig_500")
+dbSendQuery(con,"VACUUM ANALYZE gis_victoria.vic_gda9455_roads_state_orig_500")
 
 rds.count <- dbGetQuery(con,"
                         SELECT
@@ -43,7 +43,7 @@ system.time(
                                   p.uid
                                   "))
     temp
-  })#~1200 second query
+  })#~680 second query
     )
 setkey(RDDENS,uid)
 
