@@ -14,7 +14,7 @@ rds.count <- dbGetQuery(con,"
       gis_california.cal_nad8310_roads_study_500
   ")$max
 
-chunks <- split(count.vec, ceiling(seq_along(c(1:rds.count))/100000))
+chunks <- split(seq_len(rds.count), ceiling(seq_along(c(1:rds.count))/100000))
 
 
 RDCLASS <- as.data.table(dbGetQuery(con,"
