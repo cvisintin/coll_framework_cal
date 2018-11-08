@@ -4,10 +4,10 @@ require(raster)
 require(boot)
 require(doMC)
 require(fields)
-require(spatstat)
+#require(spatstat)
 require(maptools)
 require(ncf)
-require(caret)
+#require(caret)
 
 drv <- dbDriver("PostgreSQL")  #Specify a driver for postgreSQL type database
 con <- dbConnect(drv, dbname="qaeco_spatial", user="qaeco", password="Qpostgres15", host="boab.qaeco.com", port="5432")  #Connection to database server on Boab
@@ -46,9 +46,9 @@ SELECT r.uid AS uid, ST_Length(r.geom)/1000 AS length, sum((st_length(st_interse
 setkey(roads,uid)
 
 
-tvol.preds <- as.data.table(read.csv("output/vic_tvol_preds_rf2.csv"))  #Read in collision data training set (presences/absences of collisions and covariates)
+tvol.preds <- as.data.table(read.csv("output/vic_tvol_preds_rf_500.csv"))  #Read in collision data training set (presences/absences of collisions and covariates)
 
-tspd.preds <- as.data.table(read.csv("output/vic_tspd_preds_rf2.csv"))  #Read in collision data training set (presences/absences of collisions and covariates)
+tspd.preds <- as.data.table(read.csv("output/vic_tspd_preds_rf_500.csv"))  #Read in collision data training set (presences/absences of collisions and covariates)
 
 cov.data <- Reduce(function(x, y) merge(x, y, all=TRUE), list(roads,tvol.preds,tspd.preds))
 
@@ -105,15 +105,15 @@ summary(coll.glm)  #Examine fit of regression model
 
 paste0("% Deviance Explained: ",round(((coll.glm$null.deviance - coll.glm$deviance)/coll.glm$null.deviance)*100,2))  #Report reduction in deviance
 
-write.csv(signif(summary(coll.glm)$coefficients, digits=4),"output/vic_coll_coef2.csv",row.names=FALSE)
+write.csv(signif(summary(coll.glm)$coefficients, digits=4),"output/vic_coll_coef_500.csv",row.names=FALSE)
 
-write.csv(formatC(anova(coll.glm)[2:5,2]/sum(anova(coll.glm)[2:5,2]), format='f',digits=4),"output/vic_coll_anova2.csv",row.names=FALSE)
+write.csv(formatC(anova(coll.glm)[2:5,2]/sum(anova(coll.glm)[2:5,2]), format='f',digits=4),"output/vic_coll_anova_500.csv",row.names=FALSE)
 
-write.csv(varImp(coll.glm, scale=FALSE),"output/vic_coll_varimp2.csv",row.names=FALSE)
+write.csv(varImp(coll.glm, scale=FALSE),"output/vic_coll_varimp_500.csv",row.names=FALSE)
 
-save(coll.glm,file="output/vic_coll_glm2")
+save(coll.glm,file="output/vic_coll_glm_500")
 
-save(data,file="output/vic_coll_model_data2")
+save(data,file="output/vic_coll_model_data_500")
 
 coll.preds <- predict(coll.glm, cov.data, type="response") #Predict with offset to get expected collisions on each segment per six years
 
@@ -124,7 +124,7 @@ sum(na.omit(coll.preds))/6 #total expected collisions per year
 coll.preds.df <- as.data.table(cbind("uid"=cov.data$uid,"collrisk"=coll.preds)) #Combine predictions with unique IDs for all road segments
 coll.preds.df <- na.omit(coll.preds.df)
 
-write.csv(coll.preds.df, file = "output/vic_coll_preds_glm2.csv", row.names=FALSE)
+write.csv(coll.preds.df, file = "output/vic_coll_preds_glm_500.csv", row.names=FALSE)
 
 dbWriteTable(con, c("gis_victoria", "vic_nogeom_roads_egkcollrisk_500"), value = coll.preds.df, row.names=FALSE, overwrite=TRUE)
 
@@ -158,7 +158,7 @@ system.time(
   }
 ) ###753 second runtime
 
-save(coll.resid,file="output/vic_coll_resid2")
+save(coll.resid,file="output/vic_coll_resid_500")
 
 coll.resid.norm <- qnorm(coll.resid)
 
