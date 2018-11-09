@@ -1,16 +1,12 @@
-require(RPostgreSQL)
 require(data.table)
 require(raster)
 require(boot)
 require(doMC)
 require(fields)
-require(spatstat)
 require(maptools)
 require(ncf)
-require(caret)
-
-drv <- dbDriver("PostgreSQL")  #Specify a driver for postgreSQL type database
-con <- dbConnect(drv, dbname="qaeco_spatial", user="qaeco", password="Qpostgres15", host="boab.qaeco.com", port="5432")  #Connection to database server on Boab
+require(dplyr)
+require(RPostgreSQL)
 
 #Define function for receiver operator characteristic (ROC)
 "roc" <- function (obsdat, preddat){
@@ -22,228 +18,138 @@ con <- dbConnect(drv, dbname="qaeco_spatial", user="qaeco", password="Qpostgres1
     rnk <- rank(xy)
     roc <- ((n.x * n.y) + ((n.x * (n.x + 1))/2) - sum(rnk[1:n.x]))/(n.x * n.y)
     return(round(roc, 4))
-  }
+}
+
+"dev" <- function (model){
+  round(((model$null.deviance - model$deviance)/model$null.deviance)*100,2)
+}
+
+# drv <- dbDriver("PostgreSQL")  #Specify a driver for postgreSQL type database
+# con <- dbConnect(drv, dbname="qaeco_spatial", user="qaeco", password="Qpostgres15", host="boab.qaeco.com", port="5432")  #Connection to database server on Boab
 
 # roads <- as.data.table(dbGetQuery(con,"
-#   SELECT
-#     r.uid AS uid, r.length AS length, ST_X(r.geom) AS x, ST_Y(r.geom) AS y
-#   FROM
-# 	  (SELECT
-#       uid, ST_Length(geom)/1000 AS length, ST_LineInterpolatePoint(geom, 0.5) AS geom
-# 		FROM
-#       gis_victoria.vic_gda9455_roads_state_orig_500) AS r
+# SELECT a.uid, a.length, a.deer, b.tvol, c.tspd
+# FROM
+# (SELECT r.uid AS uid, ST_Length(r.geom)/1000 AS length, sum((st_length(st_intersection(r.geom,g.geom))/st_length(r.geom)) * (g).val) AS deer
+#   FROM gis_victoria.vic_gda9455_roads_state_orig_500 AS r, 
+#   (SELECT (ST_PixelAsPolygons(rast)).val AS val, (ST_PixelAsPolygons(rast)).geom AS geom
+#   FROM gis_victoria.vic_gda9455_grid_deer_preds_brt_500) AS g
+#   WHERE ST_Intersects(r.geom,g.geom)
+#   GROUP BY r.uid) AS a, gis_victoria.vic_nogeom_roads_volpreds_500 AS b, gis_victoria.vic_nogeom_roads_speedpreds_500 AS c
+# WHERE
+# a.uid = b.uid
+# AND
+# a.uid = c.uid
 #   "))
 # setkey(roads,uid)
+# 
+# roads$coll <- as.integer(0)
+# 
+# deercoll <- as.data.table(dbGetQuery(con,"
+#                                    SELECT DISTINCT ON (p.id)
+#                                    r.uid AS uid, CAST(1 AS INTEGER) AS coll
+#                                    FROM
+#                                    gis_victoria.vic_gda9455_roads_state_orig_500 as r,
+#                                    (SELECT DISTINCT ON (geom)
+#                                    id, geom
+#                                    FROM
+#                                    gis_victoria.vic_gda9455_fauna_deercoll_vicroads) AS p
+#                                    WHERE ST_DWithin(p.geom,r.geom, 30)
+#                                    ORDER BY p.id, ST_Distance(p.geom,r.geom)
+#                                    "))
+# setkey(deercoll,uid)
+# 
+# data <- copy(roads)
+# data[deercoll, coll := i.coll]
+# data <- na.omit(data)
+# 
+# write.csv(data, "data/deer_coll_rds_vic.csv")
 
-roads <- as.data.table(dbGetQuery(con,"
-SELECT r.uid AS uid, ST_Length(r.geom)/1000 AS length, sum((st_length(st_intersection(r.geom,g.geom))/st_length(r.geom)) * (g).val) AS deer
-  FROM gis_victoria.vic_gda9455_roads_state_orig_500_old AS r, 
-  (SELECT (ST_PixelAsPolygons(rast)).val AS val, (ST_PixelAsPolygons(rast)).geom AS geom
-  FROM gis_victoria.vic_gda9455_grid_deer_preds_brt_500) AS g
-  WHERE ST_Intersects(r.geom,g.geom)
-  GROUP BY r.uid
-  "))
-setkey(roads,uid)
+data <- read.csv("data/deer_coll_rds_vic.csv")
 
-
-tvol.preds <- as.data.table(read.csv("output/vic_tvol_preds_rf2.csv"))  #Read in collision data training set (presences/absences of collisions and covariates)
-
-tspd.preds <- as.data.table(read.csv("output/vic_tspd_preds_rf2.csv"))  #Read in collision data training set (presences/absences of collisions and covariates)
-
-cov.data <- Reduce(function(x, y) merge(x, y, all=TRUE), list(roads,tvol.preds,tspd.preds))
-
-#sdm.preds <- raster("output/egk_preds_brt.tif")
-
-#cov.data$egk <- raster::extract(sdm.preds,cov.data[,.(x,y)])
-
-cov.data$coll <- as.integer(0)
-
-coll_a <- as.data.table(dbGetQuery(con,"
-  SELECT DISTINCT ON (p.id)
-    r.uid AS uid, CAST(1 AS INTEGER) AS coll
-	FROM
-    gis_victoria.vic_gda9455_roads_state_orig_500 as r,
-      (SELECT DISTINCT ON (geom)
-        id, geom
-      FROM
-        gis_victoria.vic_gda9455_fauna_wv
-      WHERE
-        species = 'Kangaroo -  Eastern Grey'
-      AND
-        cause = 'hit by vehicle') AS p
-  WHERE ST_DWithin(p.geom,r.geom,100)
-  ORDER BY p.id, ST_Distance(p.geom,r.geom)
-  "))
-setkey(coll_a,uid)
-
-coll_b <- as.data.table(dbGetQuery(con,"
-  SELECT DISTINCT ON (p.id)
-    r.uid AS uid, CAST(1 AS INTEGER) AS coll
-	FROM
-    gis_victoria.vic_gda9455_roads_state_orig_500 as r,
-      (SELECT DISTINCT ON (geom)
-        id, geom
-      FROM
-        gis_victoria.vic_gda9455_fauna_wv_2015_egkcoll
-      WHERE
-        (year >= 2014 AND month >= 6 AND day >2)) AS p
-  WHERE ST_DWithin(p.geom,r.geom,100)
-  ORDER BY p.id, ST_Distance(p.geom,r.geom)
-  "))
-setkey(coll_b,uid)
-
-data1 <- rbind(coll_a,coll_b)
-
-data <- copy(cov.data)
-data[data1, coll := i.coll]
-data <- na.omit(data)
-#data <- data[!duplicated(data[,.(x,y)]),]
-
-coll.glm <- glm(formula = coll ~ log(egk) + log(tvol) + I(log(tvol)^2) + log(tspd), offset=log(length*6), family=binomial(link = "cloglog"), data = data)  #Fit regression model, offset accounts for road length and years of data
+load("output/deer_coll_glm_500")
 
 summary(coll.glm)  #Examine fit of regression model
 
 paste0("% Deviance Explained: ",round(((coll.glm$null.deviance - coll.glm$deviance)/coll.glm$null.deviance)*100,2))  #Report reduction in deviance
 
-write.csv(signif(summary(coll.glm)$coefficients, digits=4),"output/vic_coll_coef2.csv",row.names=FALSE)
+coll.preds <- predict(coll.glm, data, type="response") #Predict with offset to get expected collisions on each segment per six years
 
-write.csv(formatC(anova(coll.glm)[2:5,2]/sum(anova(coll.glm)[2:5,2]), format='f',digits=4),"output/vic_coll_anova2.csv",row.names=FALSE)
-
-write.csv(varImp(coll.glm, scale=FALSE),"output/vic_coll_varimp2.csv",row.names=FALSE)
-
-save(coll.glm,file="output/vic_coll_glm2")
-
-save(data,file="output/vic_coll_model_data2")
-
-coll.preds <- predict(coll.glm, cov.data, type="response") #Predict with offset to get expected collisions on each segment per six years
-
-range(na.omit(coll.preds/(cov.data$length*6))) #expected collisions per kilometer per year
-
-sum(na.omit(coll.preds))/6 #total expected collisions per year
-
-coll.preds.df <- as.data.table(cbind("uid"=cov.data$uid,"collrisk"=coll.preds)) #Combine predictions with unique IDs for all road segments
+coll.preds.df <- as.data.table(cbind("uid"=data$uid,"collrisk"=coll.preds)) #Combine predictions with unique IDs for all road segments
 coll.preds.df <- na.omit(coll.preds.df)
 
-write.csv(coll.preds.df, file = "output/vic_coll_preds_glm2.csv", row.names=FALSE)
-
-dbWriteTable(con, c("gis_victoria", "vic_nogeom_roads_egkcollrisk_500"), value = coll.preds.df, row.names=FALSE, overwrite=TRUE)
-
-prob <- predict(coll.glm, type = 'response')
-n <- 5000
-
-registerDoMC(cores=detectCores()-1)
-
-system.time(
-  coll.resid <- foreach(i = 1:nrow(data), .combine=c) %dopar% {
-    simulations.c = c()
-    while (length(simulations.c) < 10000 &
-           all(simulations.c != coll.glm$y[i])) {
-      set.seed(123+i)
-      simulations.c = c(simulations.c, rbinom(n, 1, prob[i]))
-    }
-    if (!any(simulations.c == coll.glm$y[i]))
-      warning(sprintf('datapoint %i had no valid samples', i))
-    
-    # add jitter
-    set.seed(123+i)
-    fuzzy.y <- coll.glm$y[i] + runif(1, -0.5, 0.5)
-    set.seed(123+i)
-    fuzzy.simulations <- simulations.c + runif(n, -0.5, 0.5)
-    
-    # make sure ecdf doesn't go to 1 or 0
-    sim.limits <- range(sort(unique(fuzzy.simulations))[-c(1,length(unique(fuzzy.simulations)))])
-    fuzzy.y <- pmin(pmax(fuzzy.y, sim.limits[1]), sim.limits[2])
-    
-    ecdf(fuzzy.simulations)(fuzzy.y)
-  }
-) ###753 second runtime
-
-save(coll.resid,file="output/vic_coll_resid2")
-
-coll.resid.norm <- qnorm(coll.resid)
-
-spc <- cbind(data$x, data$y, coll.resid.norm)
-
-vic.cor.df.500 <- foreach(i = 1:20, .combine=rbind) %dopar% {
-  set.seed(123+i)
-  spc.r <- spc[sample(nrow(spc), 5000),]
-  cor <- correlog(spc.r[,1], spc.r[,2], spc.r[,3], increment=500, resamp=0, latlon=FALSE)
-  data.frame(x=as.numeric(names(cor$correlation[1:20])), y=cor$correlation[1:20], n=i)
-}
-save(vic.cor.df.500,file="output/vic_coll_cor_500")
-
-vic.cor.df.125 <- foreach(i = 1:20, .combine=rbind) %dopar% {
-  set.seed(123+i)
-  spc.r <- spc[sample(nrow(spc), 5000),]
-  cor <- correlog(spc.r[,1], spc.r[,2], spc.r[,3], increment=125, resamp=0, latlon=FALSE)
-  data.frame(x=as.numeric(names(cor$correlation[1:20])), y=cor$correlation[1:20], n=i)
-}
-save(vic.cor.df.125,file="output/vic_coll_cor_125")
+write.csv(coll.preds.df, file = "output/vic_coll_preds_glm_deer.csv", row.names=FALSE)
 
 ################################# Validation #################################
 
-val.coll <- as.data.table(dbGetQuery(con,"
-  SELECT DISTINCT ON (p.id)
-    r.uid AS uid, CAST(1 AS INTEGER) AS coll
-	FROM
-    gis_victoria.vic_gda9455_roads_state_orig_500 as r,
-      (SELECT DISTINCT ON (geom)
-        id, geom
-      FROM
-        gis_victoria.vic_gda9455_fauna_egkcoll_crashstats) AS p
-  WHERE ST_DWithin(p.geom,r.geom,100)
-  ORDER BY p.id, ST_Distance(p.geom,r.geom)
-  "))
-setkey(val.coll,uid)
+val.pred.glm <- predict(coll.glm, data, type="link")  #Make predictions with regression model fit on link scale
 
-val.data1 <- val.coll
+summary(glm(data$coll ~ val.pred.glm, family = binomial(link = "cloglog")))  #slope is close to one and significant therefore model is well calibrated to external data
 
-val.data <- copy(cov.data)
-val.data[val.data1, coll := i.coll]
-val.data <- na.omit(val.data)
-#val.data <- val.data[!duplicated(val.data[,.(x,y)]),]
+summary(glm(data$coll ~ val.pred.glm, offset=val.pred.glm, family=binomial(link = "cloglog"))) #slope is not significantly different from 1 (difference of slopes close to 0)
 
-val.pred.glm <- predict(coll.glm, val.data, type="link")  #Make predictions with regression model fit on link scale
+roc(data$coll, predict(coll.glm, data, type="response"))  #Compare collision records to predictions using receiver operator characteristic (ROC) function and report value
 
-summary(glm(val.data$coll ~ val.pred.glm, family = binomial(link = "cloglog")))  #slope is close to one therefore model is well calibrated to external data after accounting for multiplicative differences
+################################# Sensitivity Analysis #################################
 
-exp(-1.90119) #collisions are more rare in validation set
+n <- 100 #simulations to run
 
-summary(glm(val.data$coll~val.pred.glm, offset=val.pred.glm, family=binomial(link = "cloglog"))) #slope is not significantly different from 1 (difference of slopes = 0)
+roc_dist <- foreach(i = seq_len(n), .combine = c) %do% {
+  data_s <- transform(data, coll = sample(coll))
+  roc(data_s$coll, predict(coll.glm, data_s, type="response"))
+}
 
-roc(val.data$coll, predict(coll.glm, val.data, type="response"))  #Compare collision records to predictions using receiver operator characteristic (ROC) function and report value
+roc_dist_rs <- sapply(roc_dist, FUN = function(x) if(x < 0.5) {1-x} else {x})
 
-###################### Get expected number of collisions for the top twenty road segments ###############
-top.segments <- as.data.table(dbGetQuery(con,"
-  SELECT
-    r.uid, r.road_name AS name, p.collrisk/((ST_Length(r.geom)/1000)*6) AS collrisk, ST_AsText(ST_LineInterpolatePoint(ST_LineMerge(r.geom),0.5)) AS xy_coordinates
-  FROM
-	gis_victoria.vic_gda9455_roads_state_orig_500 AS r,
-	gis_victoria.vic_nogeom_roads_egkcollrisk_500 AS p
-  WHERE
-	r.uid = p.uid
-  ORDER BY collrisk DESC
-  LIMIT 20
-  "))
-top.segments$xy_coordinates <- gsub("POINT\\(", "", top.segments$xy_coordinates)
-top.segments$xy_coordinates <- gsub("\\)", "", top.segments$xy_coordinates)
-top.segments$xy_coordinates <- gsub(" ", ", ", top.segments$xy_coordinates)
+plot(density(roc_dist_rs), xlim = c(0.5,1))
+abline(v = roc(data$coll, predict(coll.glm, data, type="response")), col="darkred")
 
-top.segments$name <- paste0(toupper(substr(top.segments$name, 1, 1)), tolower(substring(top.segments$name, 2)))
+################################# Aggregated Validation #################################
 
-write.csv(top.segments, file = "output/vic_coll_segments.csv", row.names=FALSE)
+# drv <- dbDriver("PostgreSQL")  #Specify a driver for postgreSQL type database
+# con <- dbConnect(drv, dbname="qaeco_spatial", user="qaeco", password="Qpostgres15", host="boab.qaeco.com", port="5432")  #Connection to database server on Boab
+# 
+# dbWriteTable(con, c("gis_victoria", "vic_nogeom_roads_deercollrisk_500"), value = coll.preds.df, row.names=FALSE, overwrite=TRUE)
+# 
+# wv.data <- as.data.table(read.csv("data/WV_deer.csv")) #Load aggregated independent data for validation
+# wv.data$RESCUE_SUBURB[wv.data$RESCUE_SUBURB == "WARBURTON EAST"] <- "WARBURTON"
+# data.towns <- wv.data[,.N,by="RESCUE_SUBURB"]
+# setnames(data.towns,c("towns","ncoll"))
+# setkey(data.towns,towns)
+# 
+# #Predictions to roads in town boundaries
+# preds_towns <- as.data.table(dbGetQuery(con,"
+#                                           SELECT
+#                                           r.uid AS uid, p.locality AS towns, ST_Length(ST_Intersection(r.geom, p.geom))/1000 AS length, r.collrisk AS collrisk
+#                                           FROM
+#                                           (SELECT
+#                                           x.uid AS uid, x.geom AS geom, y.collrisk AS collrisk
+#                                           FROM
+#                                           gis_victoria.vic_gda9455_roads_state_orig_500 AS x, gis_victoria.vic_nogeom_roads_deercollrisk_500 AS y
+#                                           WHERE
+#                                           x.uid = y.uid) AS r, gis_victoria.vic_gda9455_admin_localities AS p
+#                                           WHERE
+#                                           ST_Contains(p.geom, r.geom);
+#                                           "))
+# setkey(preds_towns,towns)
+# 
+# range(preds_towns$collrisk)
+# range(exp(preds_towns$collrisk))
+# 
+# write.csv(preds_towns[,sum(exp(collrisk)),by="towns"], "data/collpreds_towns.csv")
+# 
+# val.data.towns <- merge(preds_towns[,sum(exp(collrisk)),by="towns"], data.towns, by="towns", all.x=TRUE)
+# val.data.towns$ncoll[is.na(val.data.towns$ncoll)] <- 0
+# colnames(val.data.towns)[2] <- "expcoll"
+# 
+# data.towns[!val.data.towns,]
+# 
+# val.data.wv <- na.omit(val.data.towns)
+# 
+# write.csv(val.data.wv, "data/val_data_towns.csv", row.names = FALSE)
 
+val.data.wv <- read.csv("data/val_data_towns.csv")
 
-# SELECT
-# r.uid, r.road_name AS name, p.collrisk/((ST_Length(r.geom)/1000)*6) AS collrisk, ST_AsText(ST_LineInterpolatePoint(ST_LineMerge(r.geom),0.5)) AS xy_coordinates, r.geom
-# FROM
-# gis_victoria.vic_gda9455_roads_state AS r,
-# gis_victoria.vic_nogeom_roads_egkcollrisk AS p,
-# gis_victoria.vic_gda9455_admin_sla AS s
-# WHERE
-# r.uid = p.uid
-# AND
-# ST_Intersects(s.geom, r.geom)
-# AND
-# s.sla_name11 LIKE 'Ballarat%'
-# ORDER BY collrisk DESC
+summary(glm(formula = ncoll ~ log(expcoll), data = val.data.wv, family = poisson)) #slope is close to one and significant therefore model is well calibrated to external data
+
+dev(glm(formula=ncoll ~ log(expcoll), data=val.data.wv, family=poisson)) #percent of deviance (error in data) explained by the model fit
