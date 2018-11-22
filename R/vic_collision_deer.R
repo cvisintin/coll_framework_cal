@@ -26,14 +26,14 @@ require(RPostgreSQL)
 
 # drv <- dbDriver("PostgreSQL")  #Specify a driver for postgreSQL type database
 # con <- dbConnect(drv, dbname="qaeco_spatial", user="qaeco", password="Qpostgres15", host="boab.qaeco.com", port="5432")  #Connection to database server on Boab
-
+# 
 # roads <- as.data.table(dbGetQuery(con,"
 # SELECT a.uid, a.length, a.deer, b.tvol, c.tspd
 # FROM
 # (SELECT r.uid AS uid, ST_Length(r.geom)/1000 AS length, sum((st_length(st_intersection(r.geom,g.geom))/st_length(r.geom)) * (g).val) AS deer
-#   FROM gis_victoria.vic_gda9455_roads_state_orig_500 AS r, 
+#   FROM gis_victoria.vic_gda9455_roads_state_orig_500 AS r,
 #   (SELECT (ST_PixelAsPolygons(rast)).val AS val, (ST_PixelAsPolygons(rast)).geom AS geom
-#   FROM gis_victoria.vic_gda9455_grid_deer_preds_brt_500) AS g
+#   FROM gis_victoria.vic_gda9455_grid_deer_preds_brt_500x) AS g
 #   WHERE ST_Intersects(r.geom,g.geom)
 #   GROUP BY r.uid) AS a, gis_victoria.vic_nogeom_roads_volpreds_500 AS b, gis_victoria.vic_nogeom_roads_speedpreds_500 AS c
 # WHERE
@@ -72,6 +72,8 @@ load("output/deer_coll_glm_500")
 summary(coll.glm)  #Examine fit of regression model
 
 paste0("% Deviance Explained: ",round(((coll.glm$null.deviance - coll.glm$deviance)/coll.glm$null.deviance)*100,2))  #Report reduction in deviance
+
+new_coefficients <- coll.glm$coefficients * c(1,1,.71,1.4,1)
 
 coll.preds <- predict(coll.glm, data, type="response") #Predict with offset to get expected collisions on each segment per six years
 
