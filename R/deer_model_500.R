@@ -29,7 +29,7 @@ sdm.colors = colorRampPalette(c("white","red"))
 set.seed(123)
 
 #Construct and run boosted regression tree model
-deer.brt = gbm.step(data = model.data, gbm.x = c(4:6,9:12), gbm.y = 3, family = "bernoulli", tree.complexity = 5, learning.rate = 0.005, bag.fraction = 0.5)
+deer.brt = gbm.step(data = model.data, gbm.x = c(4:6,9:12), gbm.y = 3, family = "bernoulli", tree.complexity = 5, learning.rate = 0.05, bag.fraction = 0.5)
 save(deer.brt,file="output/cal_brt_500")
 summary(deer.brt)
 
@@ -45,7 +45,7 @@ gbm.plot(deer.brt)
 #deer.brt.simp = gbm.simplify(deer.brt)
 
 #Make predictions with model fit based on covariate values in maps
-load("data/cal_study_vars")
+load("data/cal_study_vars_500")
 
 #Replace X and Y values with ones...
 vars[["X"]][!is.na(values(vars[["X"]]))] <- 1

@@ -27,45 +27,47 @@ require(RPostgreSQL)
 # drv <- dbDriver("PostgreSQL")  #Specify a driver for postgreSQL type database
 # con <- dbConnect(drv, dbname="qaeco_spatial", user="qaeco", password="Qpostgres15", host="boab.qaeco.com", port="5432")  #Connection to database server on Boab
 
-# roads <- as.data.table(dbGetQuery(con,"
-# SELECT a.uid, a.length, a.deer, b.tvol, c.tspd
-# FROM
-# (SELECT r.uid AS uid, ST_Length(r.geom)/1000 AS length, sum((st_length(st_intersection(r.geom,g.geom))/st_length(r.geom)) * (g).val) AS deer
-#   FROM gis_victoria.vic_gda9455_roads_state_orig_500 AS r, 
-#   (SELECT (ST_PixelAsPolygons(rast)).val AS val, (ST_PixelAsPolygons(rast)).geom AS geom
-#   FROM gis_victoria.vic_gda9455_grid_deer_preds_brt_500) AS g
-#   WHERE ST_Intersects(r.geom,g.geom)
-#   GROUP BY r.uid) AS a, gis_victoria.vic_nogeom_roads_volpreds_500 AS b, gis_victoria.vic_nogeom_roads_speedpreds_500 AS c
-# WHERE
-# a.uid = b.uid
-# AND
-# a.uid = c.uid
-#   "))
-# setkey(roads,uid)
-# 
-# roads$coll <- as.integer(0)
-# 
-# deercoll <- as.data.table(dbGetQuery(con,"
-#                                    SELECT DISTINCT ON (p.id)
-#                                    r.uid AS uid, CAST(1 AS INTEGER) AS coll
-#                                    FROM
-#                                    gis_victoria.vic_gda9455_roads_state_orig_500 as r,
-#                                    (SELECT DISTINCT ON (geom)
-#                                    id, geom
-#                                    FROM
-#                                    gis_victoria.vic_gda9455_fauna_deercoll_vicroads) AS p
-#                                    WHERE ST_DWithin(p.geom,r.geom, 30)
-#                                    ORDER BY p.id, ST_Distance(p.geom,r.geom)
-#                                    "))
-# setkey(deercoll,uid)
-# 
-# data <- copy(roads)
-# data[deercoll, coll := i.coll]
-# data <- na.omit(data)
-# 
-# write.csv(data, "data/deer_coll_rds_vic.csv")
+roads <- as.data.table(dbGetQuery(con,"
+SELECT a.uid, a.length, a.deer, b.tvol, c.tspd
+FROM
+(SELECT r.uid AS uid, ST_Length(r.geom)/1000 AS length, sum((st_length(st_intersection(r.geom,g.geom))/st_length(r.geom)) * (g).val) AS deer
+  FROM gis_victoria.vic_gda9455_roads_state_orig_500 AS r,
+  (SELECT (ST_PixelAsPolygons(rast)).val AS val, (ST_PixelAsPolygons(rast)).geom AS geom
+  FROM gis_victoria.vic_gda9455_grid_deer_preds_brt_500) AS g
+  WHERE ST_Intersects(r.geom,g.geom)
+  GROUP BY r.uid) AS a, gis_victoria.vic_nogeom_roads_volpreds_500 AS b, gis_victoria.vic_nogeom_roads_speedpreds_500 AS c
+WHERE
+a.uid = b.uid
+AND
+a.uid = c.uid
+  "))
+setkey(roads,uid)
+
+roads$coll <- as.integer(0)
+
+deercoll <- as.data.table(dbGetQuery(con,"
+                                   SELECT DISTINCT ON (p.id)
+                                   r.uid AS uid, CAST(1 AS INTEGER) AS coll
+                                   FROM
+                                   gis_victoria.vic_gda9455_roads_state_orig_500 as r,
+                                   (SELECT DISTINCT ON (geom)
+                                   id, geom
+                                   FROM
+                                   gis_victoria.vic_gda9455_fauna_deercoll_vicroads) AS p
+                                   WHERE ST_DWithin(p.geom,r.geom, 30)
+                                   ORDER BY p.id, ST_Distance(p.geom,r.geom)
+                                   "))
+setkey(deercoll,uid)
+
+data <- copy(roads)
+data[deercoll, coll := i.coll]
+data <- na.omit(data)
+
+write.csv(data, "data/deer_coll_rds_vic.csv")
 
 data <- read.csv("data/deer_coll_rds_vic.csv")
+
+#linMap <- function(x, a, b) approxfun(range(x), c(a, b))(x)
 
 load("output/deer_coll_glm_500")
 

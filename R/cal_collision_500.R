@@ -68,7 +68,7 @@ coll <- as.data.table(dbGetQuery(con,"
         confidence != 'Best Guess'
       AND
         odatetime >= '2006-06-01 00:00') AS p
-  WHERE ST_DWithin(p.geom, r.geom, 30)
+  WHERE ST_DWithin(p.geom, r.geom, 10)
   ORDER BY p.id, ST_Distance(p.geom, r.geom)
   "))
 setkey(coll,uid)

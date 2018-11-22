@@ -100,23 +100,25 @@ setkey(POPDENS,uid)
 
 
 SPEEDLMT <- as.data.table(dbGetQuery(con,"
-                                     SELECT
-                                     r.uid as uid, mode() WITHIN GROUP (ORDER BY p.speeds) AS speedlmt
+                                     SELECT DISTINCT ON (r.uid)
+                                     r.uid as uid, CAST(p.maxspeed AS INTEGER) AS speedlmt
                                      FROM
-                                     gis_victoria.vic_gda9455_roads_state_orig_500 as r, gis_victoria.vic_gda9455_roads_allspeeds AS p
-                                     WHERE ST_DWithin(p.geom, r.geom, 5)
-                                     GROUP BY r.uid
+                                     gis_victoria.vic_gda9455_roads_state_orig_500 as r, gis_victoria.vic_gda9455_roads_speeds_2017 AS p
+                                     WHERE ST_DWithin(p.geom, r.geom, 1)
+                                     ORDER BY r.uid, ST_Distance(p.geom, r.geom)
                                      ")) #~10 second query
 setkey(SPEEDLMT,uid)
 
 
 AADT <- as.data.table(dbGetQuery(con,"
-                                 SELECT
-                                 r.uid AS uid, avg(p.aadt) as aadt
+                                 SELECT DISTINCT ON (r.uid)
+                                 r.uid AS uid, p.aadt as aadt
                                  FROM
-                                 gis_victoria.vic_gda9455_roads_state_orig_500 as r, gis_victoria.vic_gda9455_roads_aadt AS p
-                                 WHERE ST_DWithin(p.geom, r.geom, 5)
-                                 GROUP BY r.uid
+                                 gis_victoria.vic_gda9455_roads_state_orig_500 as r, 
+                                 (SELECT CAST(two_way_aa AS INTEGER) AS aadt, ST_LineInterpolatePoint((ST_Dump(geom)).geom, 0.5) AS geom
+                                 FROM gis_victoria.vic_gda9455_roads_aadt_2017) AS p
+                                 WHERE ST_DWithin(p.geom, r.geom, 1)
+                                 ORDER BY r.uid, ST_Distance(p.geom, r.geom)
                                  ")) #~1 second query
 setkey(AADT,uid)
 

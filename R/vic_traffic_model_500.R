@@ -5,7 +5,6 @@ require(RPostgreSQL)
 drv <- dbDriver("PostgreSQL")  #Specify a driver for postgreSQL type database
 con <- dbConnect(drv, dbname="qaeco_spatial", user="qaeco", password="Qpostgres15", host="boab.qaeco.com", port="5432")  #Connection to database server on Boab
 
-
 model.data <- as.data.table(read.delim("data/vic_model_data_traffic_500.csv", header=T, sep=","))  #Read in traffic volume data for road segments
 
 model.data[!is.na(aadt),.N]
@@ -15,7 +14,7 @@ model.data[!is.na(speedlmt),.N]
 cor(na.omit(model.data[,.(popdens,kmtohwy,kmtodev,rddens,rdclass)]))
 
 set.seed(123)
-volume.rf <- randomForest(formula = log(aadt) ~ kmtodev + kmtohwy + popdens + rdclass + rddens, data = model.data[!is.na(model.data$aadt),], mtry=2, importance = TRUE, sampsize = 1000)  #Fit random forest model
+volume.rf <- randomForest(formula = log(aadt) ~ kmtodev + kmtohwy + popdens + rdclass + rddens, data = model.data[!is.na(model.data$aadt) & model.data$aadt != 0,], mtry=2, importance = TRUE, sampsize = 500)  #Fit random forest model
 
 volume.rf$importance
 
@@ -32,9 +31,9 @@ abline(a=0,b=.5, lty=2)
 
 dbWriteTable(con, c("gis_victoria", "vic_nogeom_roads_volpreds_500"), value = vol.preds.dt, row.names=FALSE, overwrite=TRUE)
 
-
 set.seed(123)
-speed.rf <- randomForest(formula = speedlmt ~ rdclass + rddens, data = model.data[!is.na(model.data$speedlmt),], mtry=2, importance = TRUE, sampsize = 1000)  #Fit random forest model
+
+speed.rf <- randomForest(formula = speedlmt ~ rdclass + rddens, data = model.data[!is.na(model.data$speedlmt) & model.data$speedlmt != 0,], mtry=2, importance = TRUE, sampsize = 500)  #Fit random forest model
 
 speed.rf$importance
 
