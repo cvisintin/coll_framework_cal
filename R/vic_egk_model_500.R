@@ -8,7 +8,7 @@ require(data.table)
 require(ncf)
 require(foreach)
 
-model.data <- read.csv("data/vic_model_data_sdm2.csv", header=T, sep=",")
+model.data <- read.csv("data/vic_model_data_sdm_500.csv", header=T, sep=",")
 
 length(model.data$OCC[model.data$OCC==1])
 
@@ -19,7 +19,7 @@ sdm.colors = colorRampPalette(c("white","darkred")) #Define color scheme for plo
 set.seed(123) #Set random seed to make results of gradient boosted regressions identical for each run
 
 kang.brt = gbm.step(data = model.data, gbm.x = 4:10, gbm.y = 3, family = "bernoulli", tree.complexity = 5, learning.rate = 0.005, bag.fraction = 0.5, prev.stratify = FALSE) #Create boosted regression tree model
-save(kang.brt,file="output/vic_brt2")
+save(kang.brt,file="output/vic_brt_500")
 summary(kang.brt)
 
 #Report reduction in deviance on null model (percent of error explained by model)
