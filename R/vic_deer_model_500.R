@@ -49,7 +49,7 @@ grid.files <- list.files(path='../data/grids/envi') #Create vector of filenames 
 
 grid.names <- substring(unlist(strsplit(grid.files,"\\_500."))[(1:(2*(length(grid.files)))*2)-1][1:length(grid.files)],18) #Create vector of covariate names
 
-vic.rst <- raster("../data/grids/VIC_GDA9455_GRID_STATE_500.tif")
+vic.rst <- raster("data/grids/vic/VIC_GDA9455_GRID_STATE_1000.tif")
 
 clip <- extent(-58000, 764000, 5661000, 6224000) #Define clipping extent of maps
 
@@ -69,44 +69,43 @@ for (i in 1:length(grid.files)) {
 vars <- stack(c(mget(grid.names),"X"=X,"Y"=Y)) #Combine all maps to single stack
 save(vars,file="../data/vic_study_vars")
 
-# sr <- "+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs"
-# 
-# wkt <- writeWKT(as(extent(projectRaster(vic.rst, crs = sr)), 'SpatialPolygons'))
-# 
-# #Specify target species
-# sp.target <- "Cervus unicolor"
-# 
-# #Specify start year
-# yr.start <- 2000
-# 
-# #Specify end year
-# yr.end <- 2017
-# 
-# #Download target species data - add fields as required - note additional fields may be added (?occ_search and http://www.gbif.org/developer/occurrence#parameters)
-# fields <- ala_fields("occurrence_stored",as_is=TRUE)
-# 
-# species <- specieslist(sp.target, wkt)
-# 
-# sp.data <- occurrences(taxon = paste(sp.target),
-#                        wkt = wkt,
-#                        fq = "",
-#                        fields = c('species','latitude','longitude'),
-#                        download_reason_id = 10)[['data']][,1:2]
-# 
-# sp.data <- as.data.table(sp.data)
-# 
-# sites.1 <- sp.data[, .N, by="longitude,latitude"]
-# 
-# x1 <- cbind(sites.1[,.("LON"=longitude,"LAT"=latitude)],"OCC"=rep(1,nrow(sites.1)))
-# 
-# #Optional conversion to projected coordinates for use in SDMs which sample from environmental covariate grids
-# coord.sys <- CRS("+init=epsg:28355")
-# 
-# ll <- SpatialPoints(x1[,.(LON,LAT)], proj4string=CRS("+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs"))
-# UTM <- data.frame(spTransform(ll, coord.sys))
-# names(UTM) <- c('X','Y')
+sr <- "+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs"
 
-data <- read.csv("../data/VIC_GDA9455_FAUNA_VBA_DEER.csv")
+wkt <- writeWKT(as(extent(projectRaster(vic.rst, crs = sr)), 'SpatialPolygons'))
+
+#Specify target species
+sp.target <- "Cervus"
+
+#Specify start year
+yr.start <- 2000
+
+#Specify end year
+yr.end <- 2016
+
+#Download target species data - add fields as required - note additional fields may be added (?occ_search and http://www.gbif.org/developer/occurrence#parameters)
+fields <- ala_fields("occurrence_stored",as_is=TRUE)
+
+species <- specieslist(sp.target, wkt)
+
+sp.data <- occurrences(taxon = paste(sp.target),
+                       wkt = wkt,
+                       fields = c('species','latitude','longitude'),
+                       download_reason_id = 10)[['data']][,1:3]
+
+sp.data <- as.data.table(sp.data)
+
+sites.1 <- sp.data[species != "", .N, by="longitude,latitude"]
+
+x1 <- cbind(sites.1[,.("LON"=longitude,"LAT"=latitude)],"OCC"=rep(1,nrow(sites.1)))
+
+#Optional conversion to projected coordinates for use in SDMs which sample from environmental covariate grids
+coord.sys <- CRS("+init=epsg:28355")
+
+ll <- SpatialPoints(x1[,.(LON,LAT)], proj4string=CRS("+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs"))
+UTM <- data.frame(spTransform(ll, coord.sys))
+names(UTM) <- c('X','Y')
+
+data <- read.csv("data/VIC_GDA9455_FAUNA_VBA_DEER.csv")
 
 data1.1 <- thin.algorithm(data[, 4:5], 500, 50)
 data1.1 <- as.data.table(cbind(data1.1,"OCC"=1))

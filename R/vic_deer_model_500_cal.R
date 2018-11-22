@@ -35,6 +35,7 @@ sdm.colors = colorRampPalette(c("white","red"))
 plot(brt.preds, col=sdm.colors(100))
 
 #Use system commands to translate and upload grid to postgis database
-system("raster2pgsql -d -C -I -M -s 28355 -t auto /home/casey/Research/Github/coll_framework_cal/output/deer_preds_brt_vic.tif gis_victoria.vic_gda9455_grid_deer_preds_brt | PGPASSWORD=Qpostgres15 psql -d qaeco_spatial -h boab.qaeco.com -p 5432 -U qaeco -w")
+system("raster2pgsql -d -C -I -M -s 28355 -t auto /home/casey/Research/Github/coll_framework_cal/data/deer_preds_brt_500.tif gis_victoria.vic_gda9455_grid_deer_preds_brt_500x | PGPASSWORD=Qpostgres15 psql -d qaeco_spatial -h boab.qaeco.com -p 5432 -U qaeco -w")
+
 
 

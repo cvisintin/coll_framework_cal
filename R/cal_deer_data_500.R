@@ -7,6 +7,7 @@ require(rgbif)
 require(raster)
 require(RPostgreSQL)
 require(fields)
+require(dismo)
 
 # thin.algorithm <- function (rec.df.orig, thin.par, reps) # function slightly adapted from https://github.com/cran/spThin/blob/master/R/thin.algorithm.R
 # {

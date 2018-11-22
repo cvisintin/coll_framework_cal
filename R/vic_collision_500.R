@@ -71,7 +71,7 @@ coll_a <- as.data.table(dbGetQuery(con,"
         species = 'Kangaroo -  Eastern Grey'
       AND
         cause = 'hit by vehicle') AS p
-  WHERE ST_DWithin(p.geom,r.geom,100)
+  WHERE ST_DWithin(p.geom, r.geom, 100)
   ORDER BY p.id, ST_Distance(p.geom,r.geom)
   "))
 setkey(coll_a,uid)
@@ -86,8 +86,8 @@ coll_b <- as.data.table(dbGetQuery(con,"
       FROM
         gis_victoria.vic_gda9455_fauna_wv_2015_egkcoll
       WHERE
-        (year >= 2014 AND month >= 6 AND day >2)) AS p
-  WHERE ST_DWithin(p.geom,r.geom,100)
+        (year >= 2014 AND month >= 6 AND day > 2)) AS p
+  WHERE ST_DWithin(p.geom, r.geom, 100)
   ORDER BY p.id, ST_Distance(p.geom,r.geom)
   "))
 setkey(coll_b,uid)
@@ -98,6 +98,14 @@ data <- copy(cov.data)
 data[data1, coll := i.coll]
 data <- na.omit(data)
 #data <- data[!duplicated(data[,.(x,y)]),]
+
+apply(data, 2, range)
+
+cor(data[, 3:5])
+
+length(data$coll[data$coll==1])
+
+length(data$coll[data$coll==0])
 
 coll.glm <- glm(formula = coll ~ log(egk) + log(tvol) + I(log(tvol)^2) + log(tspd), offset=log(length*6), family=binomial(link = "cloglog"), data = data)  #Fit regression model, offset accounts for road length and years of data
 

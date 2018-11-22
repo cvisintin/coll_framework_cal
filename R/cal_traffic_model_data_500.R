@@ -100,23 +100,25 @@ setkey(POPDENS,uid)
 
 
 SPEEDLMT <- as.data.table(dbGetQuery(con,"
-  SELECT
-      r.uid as uid, mode() WITHIN GROUP (ORDER BY p.maxspeed) AS speedlmt
+  SELECT DISTINCT ON (r.uid)
+      r.uid as uid, CAST(p.maxspeed AS INTEGER) AS speedlmt
 		FROM
-      gis_california.cal_nad8310_roads_study_500 as r, gis_california.cal_nad8310_roads_study_speeds AS p
-    WHERE ST_DWithin(p.geom, r.geom, 5)
-    GROUP BY r.uid
+      gis_california.cal_nad8310_roads_study_500 as r, gis_california.cal_nad8310_roads_study_speeds_2017 AS p
+    WHERE ST_DWithin(p.geom, r.geom, 1)
+    ORDER BY r.uid, ST_Distance(p.geom, r.geom)
   ")) #~10 second query
 setkey(SPEEDLMT,uid)
 
 
 AADT <- as.data.table(dbGetQuery(con,"
-  SELECT
-    r.uid AS uid, avg(p.aadt) as aadt
+  SELECT DISTINCT ON (r.uid)
+    r.uid AS uid, (CAST(p.back_aadt AS INTEGER) + CAST(p.ahead_aadt as INTEGER))/2 as aadt
 	FROM
-    gis_california.cal_nad8310_roads_study_500 as r, gis_california.cal_nad8310_roads_study_aadt AS p
-  WHERE ST_DWithin(p.geom, r.geom, 5)
-  GROUP BY r.uid
+    gis_california.cal_nad8310_roads_study_500 as r, gis_california.cal_nad8310_roads_study_aadt_2016 AS p
+  WHERE ST_DWithin(p.geom, r.geom, 1)
+  AND p.back_aadt IS NOT NULL
+  AND p.ahead_aadt IS NOT NULL
+  ORDER BY r.uid, ST_Distance(p.geom, r.geom)
   ")) #~1 second query
 setkey(AADT,uid)
 

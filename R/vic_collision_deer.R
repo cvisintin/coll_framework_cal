@@ -67,6 +67,8 @@ require(RPostgreSQL)
 
 data <- read.csv("data/deer_coll_rds_vic.csv")
 
+#linMap <- function(x, a, b) approxfun(range(x), c(a, b))(x)
+
 load("output/deer_coll_glm_500")
 
 summary(coll.glm)  #Examine fit of regression model
