@@ -12,24 +12,22 @@ require(scales)
 #Read in modelling dataset
 model.data <- read.csv("data/cal_model_data_sdm_500.csv", header=T, sep=",")
 
-#model.data$TREEDENS <- model.data$TREEDENS / 100
-
 apply(model.data, 2, range)
 
-cor(model.data[, 4:12])
+cor(model.data[, 4:10])
 
 length(model.data$OCC[model.data$OCC==1])
 
 length(model.data$OCC[model.data$OCC==0])
 
 #Define color scheme for plotting
-sdm.colors = colorRampPalette(c("white","red"))
+sdm.colors = colorRampPalette(c("white","darkred"))
 
 #Set random seed to make results of gradient boosted regressions identical for each run (reproducible)
 set.seed(123)
 
 #Construct and run boosted regression tree model
-deer.brt = gbm.step(data = model.data, gbm.x = c(4:6,9:12), gbm.y = 3, family = "bernoulli", tree.complexity = 5, learning.rate = 0.05, bag.fraction = 0.5)
+deer.brt = gbm.step(data = model.data, gbm.x = c(4:10), gbm.y = 3, family = "bernoulli", tree.complexity = 5, learning.rate = 0.005, bag.fraction = 0.5)
 save(deer.brt,file="output/cal_brt_500")
 summary(deer.brt)
 
@@ -67,4 +65,4 @@ points(model.data[model.data$OCC == 1, 1:2], pch = ".")
 cor <- correlog(model.data[,1], model.data[,2], resid(deer.brt), increment=500, resamp=0, latlon=FALSE)
 cal.cor.df <- data.frame(x=as.numeric(names(cor$correlation[1:20])), y=cor$correlation[1:20])
 
-save(cal.cor.df,file="output/cal_brt_cor")
+save(cal.cor.df,file="output/cal_brt_cor_500")

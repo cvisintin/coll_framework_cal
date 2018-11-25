@@ -70,9 +70,6 @@ for (i in 1:length(grid.files)) {
 vars <- stack(c(mget(grid.names),"X"=X,"Y"=Y)) #Combine all maps to single stack
 save(vars,file="data/cal_study_vars_500")
 
-corLocal(MNTEMPWQ, PRECDM, method='spearman')
-
-
 # Query database study boundary for species records
 wkt <- as.character(dbGetQuery(con,"
   SELECT

@@ -51,28 +51,26 @@ grid.files <- list.files(path='data/grids/vic/envi/500') #Create vector of filen
 
 grid.names <- substring(unlist(strsplit(grid.files,"\\_500."))[(1:(2*(length(grid.files)))*2)-1][1:length(grid.files)],18) #Create vector of covariate names
 
-vic.rst <- raster("data/grids/VIC_GDA9455_GRID_STATE_500.tif")
+vic.rst <- raster("data/grids/vic/VIC_GDA9455_GRID_STATE_500.tif")
 
 clip <- extent(-58000, 764000, 5661000, 6224000) #Define clipping extent of maps
 
-X <- Y <- vic.rst.study
-Y[] <- yFromCell(vic.rst.study, 1:ncell(vic.rst.study))/mean(extent(vic.rst.study)[3:4])
-Y <- crop(Y,clip.study) * vic.rst.study
-X[] <- xFromCell(vic.rst.study, 1:ncell(vic.rst.study))/mean(extent(vic.rst.study)[1:2])
-X <- crop(X,clip.study) * vic.rst.study
+X <- Y <- vic.rst
+Y[] <- yFromCell(vic.rst, 1:ncell(vic.rst))/mean(extent(vic.rst)[3:4])
+Y <- crop(Y, clip) * vic.rst
+X[] <- xFromCell(vic.rst, 1:ncell(vic.rst))/mean(extent(vic.rst)[1:2])
+X <- crop(X, clip) * vic.rst
 
 #Read in grids, crop, and multiply with template to create consistent covariate maps
 for (i in 1:length(grid.files)) {
   temp <- raster(paste0("data/grids/vic/envi/500/",grid.files[i]))
   #temp <- crop(temp, clip.state)
   #assign(grid.names[i],temp * vic.rst.state)
-  temp <- crop(temp, clip.study)
-  assign(grid.names[i],temp * vic.rst.study)
+  temp <- crop(temp, clip)
+  assign(grid.names[i],temp * vic.rst)
 }
 vars <- stack(c(mget(grid.names),"X"=X,"Y"=Y)) #Combine all maps to single stack
 save(vars,file="data/vic_study_vars_500")
-
-corLocal(MNTEMPWQ, PRECDM, method='spearman')
 
 data1 <- dbGetQuery(con,paste0("
       SELECT DISTINCT ON (pts.geom)
@@ -110,4 +108,4 @@ final.data <- cbind(egk.data,samples.df)
 #Remove any records with missing information - occurs where sampling detected NAs in grids
 final.data <- na.omit(final.data)
 
-write.csv(final.data, "data/vic_model_data_sdm2.csv", row.names=FALSE)
+write.csv(final.data, "data/vic_model_data_sdm_500.csv", row.names=FALSE)
