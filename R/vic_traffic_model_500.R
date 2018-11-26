@@ -27,7 +27,7 @@ vol.preds.dt <- as.data.table(vol.preds.df)
 setkey(vol.preds.dt,uid)
 perf.vol <- merge(vol.preds.dt,model.data[!is.na(model.data$aadt),])
 plot(perf.vol$aadt,perf.vol$tvol)
-abline(a=0,b=.5, lty=2)
+abline(a=0,b=1, lty=2)
 
 dbWriteTable(con, c("gis_victoria", "vic_nogeom_roads_volpreds_500"), value = vol.preds.dt, row.names=FALSE, overwrite=TRUE)
 
@@ -46,6 +46,6 @@ speed.preds.dt <- as.data.table(speed.preds.df)
 setkey(speed.preds.dt,uid)
 perf.spd <- merge(speed.preds.dt,model.data[!is.na(model.data$speedlmt),])
 plot(perf.spd$speedlmt,perf.spd$tspd)
-abline(a=0,b=.5, lty=2)
+abline(a=0,b=1, lty=2)
 
 dbWriteTable(con, c("gis_victoria", "vic_nogeom_roads_speedpreds_500"), value = speed.preds.dt, row.names=FALSE, overwrite=TRUE)
