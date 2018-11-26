@@ -1,29 +1,29 @@
-# require(data.table)
-# require(raster)
-# require(boot)
-# require(doMC)
-# require(fields)
-# require(maptools)
-# require(ncf)
-# require(dplyr)
-# require(RPostgreSQL)
-# 
-# #Define function for receiver operator characteristic (ROC)
-# "roc" <- function (obsdat, preddat){
-#     if (length(obsdat) != length(preddat)) 
-#       stop("obs and preds must be equal lengths")
-#     n.x <- length(obsdat[obsdat == 0])
-#     n.y <- length(obsdat[obsdat == 1])
-#     xy <- c(preddat[obsdat == 0], preddat[obsdat == 1])
-#     rnk <- rank(xy)
-#     roc <- ((n.x * n.y) + ((n.x * (n.x + 1))/2) - sum(rnk[1:n.x]))/(n.x * n.y)
-#     return(round(roc, 4))
-# }
-# 
-# "dev" <- function (model){
-#   round(((model$null.deviance - model$deviance)/model$null.deviance)*100,2)
-# }
-# 
+require(data.table)
+require(raster)
+require(boot)
+require(doMC)
+require(fields)
+require(maptools)
+require(ncf)
+require(dplyr)
+require(RPostgreSQL)
+
+#Define function for receiver operator characteristic (ROC)
+"roc" <- function (obsdat, preddat){
+    if (length(obsdat) != length(preddat))
+      stop("obs and preds must be equal lengths")
+    n.x <- length(obsdat[obsdat == 0])
+    n.y <- length(obsdat[obsdat == 1])
+    xy <- c(preddat[obsdat == 0], preddat[obsdat == 1])
+    rnk <- rank(xy)
+    roc <- ((n.x * n.y) + ((n.x * (n.x + 1))/2) - sum(rnk[1:n.x]))/(n.x * n.y)
+    return(round(roc, 4))
+}
+
+"dev" <- function (model){
+  round(((model$null.deviance - model$deviance)/model$null.deviance)*100,2)
+}
+
 # drv <- dbDriver("PostgreSQL")  #Specify a driver for postgreSQL type database
 # con <- dbConnect(drv, dbname="qaeco_spatial", user="qaeco", password="Qpostgres15", host="boab.qaeco.com", port="5432")  #Connection to database server on Boab
 # 
@@ -63,9 +63,9 @@
 # data[deercoll, coll := i.coll]
 # data <- na.omit(data)
 # 
-# write.csv(data, "data/deer_coll_rds_vic.csv")
-# 
-# data <- read.csv("data/deer_coll_rds_vic.csv")
+#write.csv(data, "data/deer_coll_rds_vic.csv", row.names = FALSE)
+
+data <- read.csv("data/deer_coll_rds_vic.csv")
 
 #linMap <- function(x, a, b) approxfun(range(x), c(a, b))(x)
 
@@ -75,12 +75,12 @@ summary(coll.glm)  #Examine fit of regression model
 
 paste0("% Deviance Explained: ",round(((coll.glm$null.deviance - coll.glm$deviance)/coll.glm$null.deviance)*100,2))  #Report reduction in deviance
 
-coll.preds <- predict(coll.glm, data, type="response") #Predict with offset to get expected collisions on each segment per six years
+coll.preds <- predict(coll.glm, data, type="response") #Predict with offset to get expected collisions on each segment
 
 coll.preds.df <- as.data.table(cbind("uid"=data$uid,"collrisk"=coll.preds)) #Combine predictions with unique IDs for all road segments
 coll.preds.df <- na.omit(coll.preds.df)
 
-write.csv(coll.preds.df, file = "output/vic_coll_preds_glm_deer.csv", row.names=FALSE)
+write.csv(coll.preds.df, file = "output/vic_coll_preds_glm_deer.csv", row.names = FALSE)
 
 ################################# Validation #################################
 
