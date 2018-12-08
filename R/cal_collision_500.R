@@ -49,10 +49,6 @@ tspd.preds <- as.data.table(read.csv("output/cal_tspd_preds_rf_500.csv"))  #Read
 
 cov.data <- Reduce(function(x, y) merge(x, y, all=TRUE), list(roads,tvol.preds,tspd.preds))
 
-#sdm.preds <- raster("output/deer_preds_brt.tif")
-
-#cov.data$deer <- raster::extract(sdm.preds,cov.data[,.(x,y)])
-
 cov.data$coll <- as.integer(0)
 
 coll <- as.data.table(dbGetQuery(con,"
@@ -205,7 +201,7 @@ val.pred.glm <- predict(coll.glm, val.data, type="link")  #Make predictions with
 
 summary(glm(val.data$coll ~ val.pred.glm, family = binomial(link = "cloglog")))  #slope is close to one therefore model is well calibrated to external data after accounting for multiplicative differences
 
-exp(0.52901) #collisions are more abundant in validation set
+exp(0.86558) #collisions are more abundant in validation set
 
 summary(glm(val.data$coll~val.pred.glm, offset=val.pred.glm, family=binomial(link = "cloglog"))) #slope is not significantly different from 1 (difference of slopes = 0)
 

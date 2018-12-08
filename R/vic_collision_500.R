@@ -45,16 +45,11 @@ SELECT r.uid AS uid, ST_Length(r.geom)/1000 AS length, sum((st_length(st_interse
   "))
 setkey(roads,uid)
 
-
 tvol.preds <- as.data.table(read.csv("output/vic_tvol_preds_rf_500.csv"))  #Read in collision data training set (presences/absences of collisions and covariates)
 
 tspd.preds <- as.data.table(read.csv("output/vic_tspd_preds_rf_500.csv"))  #Read in collision data training set (presences/absences of collisions and covariates)
 
 cov.data <- Reduce(function(x, y) merge(x, y, all=TRUE), list(roads,tvol.preds,tspd.preds))
-
-#sdm.preds <- raster("output/egk_preds_brt.tif")
-
-#cov.data$egk <- raster::extract(sdm.preds,cov.data[,.(x,y)])
 
 cov.data$coll <- as.integer(0)
 
