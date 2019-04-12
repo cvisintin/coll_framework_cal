@@ -22,7 +22,7 @@ sdm.colors = colorRampPalette(c("white","darkred")) #Define color scheme for plo
 
 set.seed(123) #Set random seed to make results of gradient boosted regressions identical for each run
 
-kang.brt = gbm.step(data = model.data, gbm.x = 4:10, gbm.y = 3, family = "bernoulli", tree.complexity = 5, learning.rate = 0.005, bag.fraction = 0.5, prev.stratify = FALSE) #Create boosted regression tree model
+kang.brt = gbm.step(data = model.data, gbm.x = 4:10, gbm.y = 3, family = "bernoulli", tree.complexity = 5, learning.rate = 0.01, bag.fraction = 0.5, prev.stratify = FALSE) #Create boosted regression tree model
 save(kang.brt,file="output/vic_brt_500")
 summary(kang.brt)
 
@@ -34,13 +34,13 @@ summary(kang.brt)
 
 load(file="data/vic_study_vars_500")
 
-#Replace X and Y values with ones...
-vars[["X"]][!is.na(values(vars[["X"]]))] <- 1
-vars[["Y"]][!is.na(values(vars[["Y"]]))] <- 1
+#Replace the bias layers with zeros...
+vars[["D_ROADS"]][!is.na(values(vars[["D_TOWNS"]]))] <- 0
+vars[["D_ROADS"]][!is.na(values(vars[["D_TOWNS"]]))] <- 0
 
 brt.preds <- predict(vars, kang.brt, n.trees=kang.brt$gbm.call$best.trees, type="response") #Make predictions with model fit based on covariate values in maps
 
-writeRaster(brt.preds, filename="output/egk_preds_brt_500.tif", format="GTiff", overwrite=TRUE, NAflag=-9999, datatype='FLT4S') #Write out prediction map in tif format
+writeRaster(brt.preds, filename="output/egk_preds_brt_500.tif", format="GTiff", overwrite=TRUE) #Write out prediction map in tif format
 
 #Use system commands to translate and upload grid to postgis database
 #system("raster2pgsql -d -C -I -M -s 28355 -t auto /home/casey/Research/Github/coll_framework_cal/output/egk_preds_brt_500.tif gis_victoria.vic_gda9455_grid_egk_preds_brt_500 | PGPASSWORD=Qpostgres15 psql -d qaeco_spatial -h boab.qaeco.com -p 5432 -U qaeco -w")

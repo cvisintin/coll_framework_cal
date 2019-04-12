@@ -15,7 +15,11 @@ model.data[!is.na(speedlmt),.N]
 cor(na.omit(model.data[,.(popdens,kmtohwy,kmtodev,rddens,rdclass)]))
 
 set.seed(123)
-volume.rf <- randomForest(formula = log(aadt) ~ kmtodev + kmtohwy + popdens + rdclass + rddens, data = model.data[!is.na(model.data$aadt) & !is.na(model.data$kmtodev) & model.data$aadt != 0,], mtry=2, importance = TRUE, sampsize = 500)  #Fit random forest model
+(volume.rf <- randomForest(formula = log(aadt) ~ kmtodev + kmtohwy + popdens + rdclass + rddens,
+                           data = model.data[!is.na(model.data$aadt) & !is.na(model.data$kmtodev) & model.data$aadt != 0,],
+                           mtry=2,
+                           importance = TRUE,
+                           sampsize = 500))  #Fit random forest model
 
 volume.rf$importance
 
@@ -34,7 +38,11 @@ dbWriteTable(con, c("gis_california", "cal_nogeom_roads_volpreds_500"), value = 
 
 
 set.seed(123)
-speed.rf <- randomForest(formula = speedlmt ~ rdclass + rddens, data = model.data[!is.na(model.data$speedlmt),], mtry=2, importance = TRUE, sampsize = 500)  #Fit random forest model
+(speed.rf <- randomForest(formula = speedlmt ~ kmtodev + kmtohwy + popdens + rdclass + rddens,
+                          data = model.data[!is.na(model.data$speedlmt),],
+                          mtry=2,
+                          importance = TRUE,
+                          sampsize = 500))  #Fit random forest model
 
 speed.rf$importance
 

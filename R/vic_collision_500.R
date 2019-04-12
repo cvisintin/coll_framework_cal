@@ -4,10 +4,8 @@ require(raster)
 require(boot)
 require(doMC)
 require(fields)
-#require(spatstat)
 require(maptools)
 require(ncf)
-#require(caret)
 
 drv <- dbDriver("PostgreSQL")  #Specify a driver for postgreSQL type database
 con <- dbConnect(drv, dbname="qaeco_spatial", user="qaeco", password="Qpostgres15", host="boab.qaeco.com", port="5432")  #Connection to database server on Boab
@@ -112,7 +110,7 @@ write.csv(signif(summary(coll.glm)$coefficients, digits=4),"output/vic_coll_coef
 
 write.csv(formatC(anova(coll.glm)[2:5,2]/sum(anova(coll.glm)[2:5,2]), format='f',digits=4),"output/vic_coll_anova_500.csv",row.names=FALSE)
 
-write.csv(varImp(coll.glm, scale=FALSE),"output/vic_coll_varimp_500.csv",row.names=FALSE)
+#write.csv(varImp(coll.glm, scale=FALSE),"output/vic_coll_varimp_500.csv",row.names=FALSE)
 
 save(coll.glm,file="output/vic_coll_glm_500")
 
@@ -210,7 +208,7 @@ val.pred.glm <- predict(coll.glm, val.data, type="link")  #Make predictions with
 
 summary(glm(val.data$coll ~ val.pred.glm, family = binomial(link = "cloglog")))  #slope is close to one therefore model is well calibrated to external data after accounting for multiplicative differences
 
-exp(-1.90119) #collisions are more rare in validation set
+exp(-1.50734) #collisions are more rare in validation set
 
 summary(glm(val.data$coll~val.pred.glm, offset=val.pred.glm, family=binomial(link = "cloglog"))) #slope is not significantly different from 1 (difference of slopes = 0)
 

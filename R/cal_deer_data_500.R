@@ -8,6 +8,7 @@ require(raster)
 require(RPostgreSQL)
 require(fields)
 require(dismo)
+require(foreach)
 
 # thin.algorithm <- function (rec.df.orig, thin.par, reps) # function slightly adapted from https://github.com/cran/spThin/blob/master/R/thin.algorithm.R
 # {
@@ -53,22 +54,36 @@ grid.names <- substring(unlist(strsplit(grid.files,"\\_500."))[(1:(2*(length(gri
 cal.rst.study <- raster("data/grids/cal/CAL_NAD8310_GRID_STUDY_500.tif")
 clip.study <- extent(445000,1165000,3962000,4329000) #Define clipping extent of maps
 
-X <- Y <- cal.rst.study
-Y[] <- yFromCell(cal.rst.study, 1:ncell(cal.rst.study))/mean(extent(cal.rst.study)[3:4])
-Y <- crop(Y,clip.study) * cal.rst.study
-X[] <- xFromCell(cal.rst.study, 1:ncell(cal.rst.study))/mean(extent(cal.rst.study)[1:2])
-X <- crop(X,clip.study) * cal.rst.study
+# X <- Y <- cal.rst.study
+# Y[] <- yFromCell(cal.rst.study, 1:ncell(cal.rst.study))/mean(extent(cal.rst.study)[3:4])
+# Y <- crop(Y,clip.study) * cal.rst.study
+# names(Y) <- "Y"
+# X[] <- xFromCell(cal.rst.study, 1:ncell(cal.rst.study))/mean(extent(cal.rst.study)[1:2])
+# X <- crop(X,clip.study) * cal.rst.study
+# names(X) <- "X"
+
+road_coords <- read.csv("data/CAL_NAD8310_ROAD_CENTROIDS_STUDY.csv")[, 1:2]
+D_ROADS <- distanceFromPoints(cal.rst.study, road_coords) / 1000
+names(D_ROADS) <- "D_ROADS"
+
+town_coords <- read.csv("data/CAL_NAD8310_ADMIN_CITIES_STUDY.csv")[, 1:2]
+D_TOWNS <- distanceFromPoints(cal.rst.study, town_coords) / 1000
+names(D_TOWNS) <- "D_TOWNS"
+
+# DIST <- distanceFromPoints(cal.rst.study,
+#                               c(mean(extent(cal.rst.study)[1:2]),
+#                                 mean(extent(cal.rst.study)[3:4]))))
 
 #Read in grids, crop, and multiply with template to create consistent covariate maps
-for (i in 1:length(grid.files)) {
+vars <- stack(foreach(i = 1:length(grid.files)) %do% {
   temp <- raster(paste0("data/grids/cal/envi/500/",grid.files[i]))
-  #temp <- crop(temp, clip.state)
-  #assign(grid.names[i],temp * cal.rst.state)
   temp <- crop(temp, clip.study)
-  assign(grid.names[i],temp * cal.rst.study)
-}
-vars <- stack(c(mget(grid.names),"X"=X,"Y"=Y)) #Combine all maps to single stack
-save(vars,file="data/cal_study_vars_500")
+  temp <- temp * cal.rst.study
+  names(temp) <- grid.names[i]
+  temp
+})
+vars <- stack(vars, D_ROADS, D_TOWNS) #Combine all maps to single stack
+save(vars, file="data/cal_study_vars_500")
 
 # Query database study boundary for species records
 wkt <- as.character(dbGetQuery(con,"
@@ -129,12 +144,12 @@ x1 <- cbind(sites.1[,.("LON"=decimalLongitude,"LAT"=decimalLatitude)],"OCC"=rep(
 #Optional conversion to projected coordinates for use in SDMs which sample from environmental covariate grids
 coord.sys <- CRS("+init=epsg:3157") #Selected California NAD83 Zone 10 UTM
 
-ll <- SpatialPoints(x1[,.(LON,LAT)], proj4string=CRS("+init=epsg:4269"))
+ll <- SpatialPoints(x1[,.(LON,LAT)], proj4string=CRS("+init=epsg:4326"))
 UTM <- data.frame(spTransform(ll, coord.sys))
 names(UTM) <- c('X','Y')
 
 #data1.1 <- thin.algorithm(UTM, 1000, 50)
-data1.1 <- gridSample(UTM, X)
+data1.1 <- gridSample(UTM, cal.rst.study)
 
 data1.1 <- as.data.table(cbind(data1.1,"OCC"=1))
 
