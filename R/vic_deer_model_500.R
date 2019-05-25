@@ -51,7 +51,6 @@ vic.rst <- raster("data/grids/vic/VIC_GDA9455_GRID_STATE_500.tif")
 # data.ala <- gridSample(UTM, vic.rst, n=1)
 # data.ala <- as.data.table(cbind(data.ala,"OCC"=1))
 
-
 data1 <- cbind(gridSample(read.csv("data/VIC_GDA9455_FAUNA_VBA_DEER.csv")[, 4:5], vic.rst, n=1), "OCC"=1)
 data0 <- read.csv("data/vic_bg_data_pts.csv")
 
@@ -83,7 +82,7 @@ sdm.colors = colorRampPalette(c("white","darkred")) #Define color scheme for plo
 
 set.seed(123) #Set random seed to make results of gradient boosted regressions identical for each run
 
-deer.brt = gbm.step(data = model.data, gbm.x = c(4:10), gbm.y = 3, family = "bernoulli", tree.complexity = 5, learning.rate = 0.005, bag.fraction = 0.5, prev.stratify = FALSE) #Create boosted regression tree model
+deer.brt = gbm.step(data = model.data, gbm.x = c(4:10), gbm.y = 3, family = "bernoulli", tree.complexity = 5, learning.rate = 0.01, bag.fraction = 0.5, prev.stratify = FALSE) #Create boosted regression tree model
 
 summary(deer.brt)
 
@@ -96,17 +95,13 @@ load(file="output/vic_deer_brt_500")
 #Report discrimination performance of model in area under receiver operator characteristic curve
 (brt.roc <- paste(round(deer.brt[["cv.statistics"]][["discrimination.mean"]],2)," +/- ",round(deer.brt[["cv.statistics"]][["discrimination.se"]],2),sep=""))
 
+#Replace the bias layers with zeros...
+vars[["D_ROADS"]][!is.na(values(vars[["D_TOWNS"]]))] <- 0
+vars[["D_ROADS"]][!is.na(values(vars[["D_TOWNS"]]))] <- 0
+
 brt.preds <- predict(vars, deer.brt, n.trees=deer.brt$gbm.call$best.trees, type="response")
-plot(brt.preds, col=sdm.colors(100)) #Plot prediction map using red to white color scheme
-
-vars_noXY <- vars
-vars_noXY[["X"]][!is.na(vars_noXY[["X"]])] <- 1
-vars_noXY[["Y"]][!is.na(vars_noXY[["Y"]])] <- 1
-brt.preds <- predict(vars_noXY, deer.brt, n.trees=deer.brt$gbm.call$best.trees, type="response")
-
 plot(brt.preds, col=sdm.colors(100)) #Plot prediction map using red to white color scheme
 
 writeRaster(brt.preds, filename="output/deer_preds_brt_500.tif", format="GTiff", overwrite=TRUE, NAflag=-9999, datatype='FLT4S') #Write out prediction map in tif format
 
-brt.preds <- raster("output/deer_preds_brt_500.tif")
 system("raster2pgsql -d -C -I -M -s 28355 -t auto /home/casey/Research/Github/coll_framework_cal/output/deer_preds_brt_500.tif gis_victoria.vic_gda9455_grid_deer_preds_brt_500 | PGPASSWORD=Qpostgres15 psql -d qaeco_spatial -h boab.qaeco.com -p 5432 -U qaeco -w")

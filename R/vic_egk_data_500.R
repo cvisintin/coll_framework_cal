@@ -55,21 +55,35 @@ vic.rst <- raster("data/grids/vic/VIC_GDA9455_GRID_STATE_500.tif")
 
 clip <- extent(-58000, 764000, 5661000, 6224000) #Define clipping extent of maps
 
-X <- Y <- vic.rst
-Y[] <- yFromCell(vic.rst, 1:ncell(vic.rst))/mean(extent(vic.rst)[3:4])
-Y <- crop(Y, clip) * vic.rst
-X[] <- xFromCell(vic.rst, 1:ncell(vic.rst))/mean(extent(vic.rst)[1:2])
-X <- crop(X, clip) * vic.rst
+# X <- Y <- vic.rst
+# Y[] <- yFromCell(vic.rst, 1:ncell(vic.rst))/mean(extent(vic.rst)[3:4])
+# Y <- crop(Y, clip) * vic.rst
+# names(Y) <- "Y"
+# X[] <- xFromCell(vic.rst, 1:ncell(vic.rst))/mean(extent(vic.rst)[1:2])
+# X <- crop(X, clip) * vic.rst
+# names(X) <- "X"
+
+road_coords <- read.csv("data/VIC_GDA9455_ROAD_CENTROIDS.csv")[, 1:2]
+D_ROADS <- distanceFromPoints(vic.rst, road_coords) / 1000
+names(D_ROADS) <- "D_ROADS"
+
+town_coords <- read.csv("data/VIC_GDA9455_ADMIN_SUBURBS.csv")[, 1:2]
+D_TOWNS <- distanceFromPoints(vic.rst, town_coords) / 1000
+names(D_TOWNS) <- "D_TOWNS"
+
+# DIST <- distanceFromPoints(vic.rst,
+#                               c(mean(extent(vic.rst)[1:2]),
+#                                 mean(extent(vic.rst)[3:4]))))
 
 #Read in grids, crop, and multiply with template to create consistent covariate maps
-for (i in 1:length(grid.files)) {
+vars <- stack(foreach(i = 1:length(grid.files)) %do% {
   temp <- raster(paste0("data/grids/vic/envi/500/",grid.files[i]))
-  #temp <- crop(temp, clip.state)
-  #assign(grid.names[i],temp * vic.rst.state)
   temp <- crop(temp, clip)
-  assign(grid.names[i],temp * vic.rst)
-}
-vars <- stack(c(mget(grid.names),"X"=X,"Y"=Y)) #Combine all maps to single stack
+  temp <- temp * vic.rst
+  names(temp) <- grid.names[i]
+  temp
+})
+vars <- stack(vars, D_ROADS, D_TOWNS) #Combine all maps to single stack
 save(vars,file="data/vic_study_vars_500")
 
 data1 <- dbGetQuery(con,paste0("
@@ -90,7 +104,7 @@ data1 <- dbGetQuery(con,paste0("
 colnames(data1) <- toupper(colnames(data1))
 
 #data1.1 <- thin.algorithm(data1, 500, 50)
-data1.1 <- gridSample(data1, X, n=1)
+data1.1 <- gridSample(data1, vic.rst)
 
 data1.1 <- as.data.table(cbind(data1.1,"OCC"=1))
 

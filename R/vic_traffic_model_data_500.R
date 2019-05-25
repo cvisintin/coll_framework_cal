@@ -27,8 +27,7 @@ setkey(RDCLASS,uid)
 
 
 registerDoMC(cores=detectCores()-1)
-system.time(
-  RDDENS <- as.data.table(foreach(i = 1:length(chunks), .packages="RPostgreSQL", .combine=rbind) %dopar% {
+RDDENS <- as.data.table(foreach(i = 1:length(chunks), .packages="RPostgreSQL", .combine=rbind) %dopar% {
     drv <- dbDriver("PostgreSQL")  #Specify a driver for postgreSQL type database
     con <- dbConnect(drv, dbname="qaeco_spatial", user="qaeco", password="Qpostgres15", host="boab.qaeco.com", port="5432")  #Connection to database server on Boab
     temp <- dbGetQuery(con,paste0("
@@ -43,8 +42,7 @@ system.time(
                                   p.uid
                                   "))
     temp
-  })#~680 second query
-    )
+})#~750 second query
 setkey(RDDENS,uid)
 
 

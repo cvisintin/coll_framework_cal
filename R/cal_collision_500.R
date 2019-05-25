@@ -4,7 +4,6 @@ require(raster)
 require(boot)
 require(doMC)
 require(fields)
-#require(caret)
 require(ncf)
 
 drv <- dbDriver("PostgreSQL")  #Specify a driver for postgreSQL type database
@@ -43,9 +42,9 @@ SELECT r.uid AS uid, ST_Length(r.geom)/1000 AS length, sum((st_length(st_interse
   "))
 setkey(roads,uid)
 
-tvol.preds <- as.data.table(read.csv("output/cal_tvol_preds_rf_500.csv"))  #Read in collision data training set (presences/absences of collisions and covariates)
+tvol.preds <- as.data.table(read.csv("output/cal_tvol_preds_rf_500.csv"))
 
-tspd.preds <- as.data.table(read.csv("output/cal_tspd_preds_rf_500.csv"))  #Read in collision data training set (presences/absences of collisions and covariates)
+tspd.preds <- as.data.table(read.csv("output/cal_tspd_preds_rf_500.csv"))
 
 cov.data <- Reduce(function(x, y) merge(x, y, all=TRUE), list(roads,tvol.preds,tspd.preds))
 
@@ -201,7 +200,7 @@ val.pred.glm <- predict(coll.glm, val.data, type="link")  #Make predictions with
 
 summary(glm(val.data$coll ~ val.pred.glm, family = binomial(link = "cloglog")))  #slope is close to one therefore model is well calibrated to external data after accounting for multiplicative differences
 
-exp(0.86558) #collisions are more abundant in validation set
+exp(3.88) #collisions are more abundant in validation set
 
 summary(glm(val.data$coll~val.pred.glm, offset=val.pred.glm, family=binomial(link = "cloglog"))) #slope is not significantly different from 1 (difference of slopes = 0)
 

@@ -75,7 +75,7 @@ summary(coll.glm)  #Examine fit of regression model
 
 paste0("% Deviance Explained: ",round(((coll.glm$null.deviance - coll.glm$deviance)/coll.glm$null.deviance)*100,2))  #Report reduction in deviance
 
-coll.preds <- predict(coll.glm, data, type="response") #Predict with offset to get expected collisions on each segment
+coll.preds <- predict(coll.glm, data, type="response")
 
 coll.preds.df <- as.data.table(cbind("uid"=data$uid,"collrisk"=coll.preds)) #Combine predictions with unique IDs for all road segments
 coll.preds.df <- na.omit(coll.preds.df)
