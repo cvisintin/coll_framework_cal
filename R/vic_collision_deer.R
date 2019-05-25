@@ -63,7 +63,7 @@ require(RPostgreSQL)
 # data[deercoll, coll := i.coll]
 # data <- na.omit(data)
 # 
-#write.csv(data, "data/deer_coll_rds_vic.csv", row.names = FALSE)
+# write.csv(data, "data/deer_coll_rds_vic.csv", row.names = FALSE)
 
 data <- read.csv("data/deer_coll_rds_vic.csv")
 
@@ -96,6 +96,7 @@ roc(data$coll, predict(coll.glm, data, type="response"))  #Compare collision rec
 
 n <- 100 #simulations to run
 
+set.seed(123)
 roc_dist <- foreach(i = seq_len(n), .combine = c) %do% {
   data_s <- transform(data, coll = sample(coll))
   roc(data_s$coll, predict(coll.glm, data_s, type="response"))
