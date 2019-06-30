@@ -76,6 +76,8 @@ data <- na.omit(data)
 
 data$tspd <- data$tspd * 1.60934
 
+#data[,.SD[sample(.N, min(700,.N))],by = coll]
+
 #load(file="output/cal_coll_model_data_500")
 
 apply(data, 2, range)
@@ -86,7 +88,7 @@ length(data$coll[data$coll==1])
 
 length(data$coll[data$coll==0])
 
-coll.glm <- glm(formula = coll ~ log(deer) + log(tvol) + I(log(tvol)^2) + log(tspd) + X + Y, offset=log(length*10), family=binomial(link = "cloglog"), data = data)  #Fit regression model
+coll.glm <- glm(formula = coll ~ log(deer) + log(tvol) + I(log(tvol)^2) + log(tspd), offset=log(length*10), family=binomial(link = "cloglog"), data = data)  #Fit regression model
 
 summary(coll.glm)  #Examine fit of regression model
 
@@ -103,6 +105,7 @@ save(coll.glm,file="output/cal_coll_glm_500")
 save(data,file="output/cal_coll_model_data_500")
 
 cov.data$tspd <- cov.data$tspd * 1.60934
+# cov.data$x <- cov.data$y <- 0
 
 coll.preds <- predict(coll.glm, cov.data, type="response") #Predict with offset to get expected annual collisions on each segment
 
