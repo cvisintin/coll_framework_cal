@@ -102,7 +102,9 @@ save(coll.glm,file="output/cal_coll_glm_500")
 
 save(data,file="output/cal_coll_model_data_500")
 
-coll.preds <- predict(coll.glm, cov.data, type="response") #Predict with offset to get expected collisions on each segment per six years
+cov.data$tspd <- cov.data$tspd * 1.60934
+
+coll.preds <- predict(coll.glm, cov.data, type="response") #Predict with offset to get expected annual collisions on each segment
 
 range(na.omit(coll.preds/(cov.data$length*10))) #expected collisions per kilometer per year
 
@@ -110,6 +112,14 @@ sum(na.omit(coll.preds))/10 #total expected collisions per year
 
 coll.preds.df <- as.data.table(cbind("uid"=cov.data$uid,"collrisk"=coll.preds)) #Combine predictions with unique IDs for all road segments
 coll.preds.df <- na.omit(coll.preds.df)
+
+coll.preds.df$length <- merge(coll.preds.df, roads, by = "uid", all.x = TRUE)$length
+coll.preds.df$cost <- coll.preds.df$collrisk * 7500
+
+mean(coll.preds.df$cost)
+sd(coll.preds.df$cost)
+sum(coll.preds.df$cost)
+range(coll.preds.df$cost[coll.preds.df$length == 0.5])
 
 write.csv(coll.preds.df, file = "output/cal_coll_preds_glm_500.csv", row.names=FALSE)
 
@@ -194,7 +204,9 @@ val.data1 <- val.coll
 val.data <- copy(cov.data)
 val.data[val.data1, coll := i.coll]
 val.data <- na.omit(val.data)
-#val.data <- val.data[!duplicated(val.data[,.(x,y)]),]
+
+length(val.data$coll[val.data$coll==1])
+length(val.data$coll[val.data$coll==0])
 
 val.pred.glm <- predict(coll.glm, val.data, type="link")  #Make predictions with regression model fit on link scale
 
@@ -209,14 +221,14 @@ roc(val.data$coll, predict(coll.glm, val.data, type="response"))  #Compare colli
 ###################### Get expected number of collisions for the top twenty road segments ###############
 top.segments <- as.data.table(dbGetQuery(con,"
   SELECT
-    r.uid, r.fullname AS name, p.collrisk/((ST_Length(r.geom)/1000)*10) AS collrisk, ST_AsText(ST_LineInterpolatePoint(ST_LineMerge(r.geom),0.5)) AS xy_coordinates
+    r.uid, r.rdname AS name, p.cost, p.collrisk/((ST_Length(r.geom)/1000)*10) AS collrisk, ST_AsText(ST_LineInterpolatePoint(ST_LineMerge(r.geom),0.5)) AS xy_coordinates
   FROM
 	gis_california.cal_nad8310_roads_study_500 AS r,
-	gis_california.cal_nogeom_roads_deercollrisk AS p
+	gis_california.cal_nogeom_roads_deercollrisk_500 AS p
   WHERE
 	r.uid = p.uid
   AND
-  r.fullname IS NOT NULL
+  r.rdname IS NOT NULL
   ORDER BY collrisk DESC
   LIMIT 20
   "))

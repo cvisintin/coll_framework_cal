@@ -97,7 +97,6 @@ apply(data, 2, range)
 cor(data[, 3:5])
 
 length(data$coll[data$coll==1])
-
 length(data$coll[data$coll==0])
 
 coll.glm <- glm(formula = coll ~ log(egk) + log(tvol) + I(log(tvol)^2) + log(tspd), offset=log(length*6), family=binomial(link = "cloglog"), data = data)  #Fit regression model, offset accounts for road length and years of data
@@ -116,7 +115,7 @@ save(coll.glm,file="output/vic_coll_glm_500")
 
 save(data,file="output/vic_coll_model_data_500")
 
-coll.preds <- predict(coll.glm, cov.data, type="response") #Predict with offset to get expected collisions on each segment per six years
+coll.preds <- predict(coll.glm, cov.data, type="response") #Predict with offset to get annual expected collisions on each segment
 
 range(na.omit(coll.preds/(cov.data$length*6))) #expected collisions per kilometer per year
 
@@ -124,6 +123,14 @@ sum(na.omit(coll.preds))/6 #total expected collisions per year
 
 coll.preds.df <- as.data.table(cbind("uid"=cov.data$uid,"collrisk"=coll.preds)) #Combine predictions with unique IDs for all road segments
 coll.preds.df <- na.omit(coll.preds.df)
+
+coll.preds.df$length <- merge(coll.preds.df, roads, by = "uid", all.x = TRUE)$length
+coll.preds.df$cost <- coll.preds.df$collrisk * 6000
+
+mean(coll.preds.df$cost)
+sd(coll.preds.df$cost)
+sum(coll.preds.df$cost)
+range(coll.preds.df$cost[coll.preds.df$length == 0.5])
 
 write.csv(coll.preds.df, file = "output/vic_coll_preds_glm_500.csv", row.names=FALSE)
 
@@ -202,7 +209,9 @@ val.data1 <- val.coll
 val.data <- copy(cov.data)
 val.data[val.data1, coll := i.coll]
 val.data <- na.omit(val.data)
-#val.data <- val.data[!duplicated(val.data[,.(x,y)]),]
+
+length(val.data$coll[val.data$coll==1])
+length(val.data$coll[val.data$coll==0])
 
 val.pred.glm <- predict(coll.glm, val.data, type="link")  #Make predictions with regression model fit on link scale
 
@@ -217,7 +226,7 @@ roc(val.data$coll, predict(coll.glm, val.data, type="response"))  #Compare colli
 ###################### Get expected number of collisions for the top twenty road segments ###############
 top.segments <- as.data.table(dbGetQuery(con,"
   SELECT
-    r.uid, r.road_name AS name, p.collrisk/((ST_Length(r.geom)/1000)*6) AS collrisk, ST_AsText(ST_LineInterpolatePoint(ST_LineMerge(r.geom),0.5)) AS xy_coordinates
+    r.uid, r.rdname AS name, p.cost, p.collrisk/((ST_Length(r.geom)/1000)*6) AS collrisk, ST_AsText(ST_LineInterpolatePoint(ST_LineMerge(r.geom),0.5)) AS xy_coordinates
   FROM
 	gis_victoria.vic_gda9455_roads_state_orig_500 AS r,
 	gis_victoria.vic_nogeom_roads_egkcollrisk_500 AS p
