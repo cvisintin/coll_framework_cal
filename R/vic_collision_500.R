@@ -64,7 +64,7 @@ coll_a <- as.data.table(dbGetQuery(con,"
         species = 'Kangaroo -  Eastern Grey'
       AND
         cause = 'hit by vehicle') AS p
-  WHERE ST_DWithin(p.geom, r.geom, 100)
+  WHERE ST_DWithin(p.geom, r.geom, 10)
   ORDER BY p.id, ST_Distance(p.geom,r.geom)
   "))
 setkey(coll_a,uid)
@@ -80,7 +80,7 @@ coll_b <- as.data.table(dbGetQuery(con,"
         gis_victoria.vic_gda9455_fauna_wv_2015_egkcoll
       WHERE
         (year >= 2014 AND month >= 6 AND day > 2)) AS p
-  WHERE ST_DWithin(p.geom, r.geom, 100)
+  WHERE ST_DWithin(p.geom, r.geom, 10)
   ORDER BY p.id, ST_Distance(p.geom,r.geom)
   "))
 setkey(coll_b,uid)

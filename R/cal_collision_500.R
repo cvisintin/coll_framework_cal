@@ -33,7 +33,7 @@ con <- dbConnect(drv, dbname="qaeco_spatial", user="qaeco", password="Qpostgres1
 # setkey(roads,uid)
 
 roads <- as.data.table(dbGetQuery(con,"
-SELECT r.uid AS uid, ST_Length(r.geom)/1000 AS length, sum((st_length(st_intersection(r.geom,g.geom))/st_length(r.geom)) * (g).val) AS deer
+SELECT r.uid AS uid, ST_X(ST_LineInterpolatePoint(r.geom, 0.5)) AS X, ST_Y(ST_LineInterpolatePoint(r.geom, 0.5)) AS Y, ST_Length(r.geom)/1000 AS length, sum((st_length(st_intersection(r.geom,g.geom))/st_length(r.geom)) * (g).val) AS deer
   FROM gis_california.cal_nad8310_roads_study_500 AS r, 
   (SELECT (ST_PixelAsPolygons(rast)).val AS val, (ST_PixelAsPolygons(rast)).geom AS geom
   FROM gis_california.cal_nad8310_grid_deer_preds_brt_500) AS g
@@ -86,7 +86,7 @@ length(data$coll[data$coll==1])
 
 length(data$coll[data$coll==0])
 
-coll.glm <- glm(formula = coll ~ log(deer) + log(tvol) + I(log(tvol)^2) + log(tspd), offset=log(length*10), family=binomial(link = "cloglog"), data = data)  #Fit regression model
+coll.glm <- glm(formula = coll ~ log(deer) + log(tvol) + I(log(tvol)^2) + log(tspd) + X + Y, offset=log(length*10), family=binomial(link = "cloglog"), data = data)  #Fit regression model
 
 summary(coll.glm)  #Examine fit of regression model
 
