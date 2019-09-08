@@ -1,28 +1,42 @@
-pycno_interpolate <-function(input_path,
-                             input_filename,
+require(pycno)
+require(raster)
+
+pycno_interpolate <-function(input_filename,
                              pop_column,
                              celldim,
-                             input_clip_path,
-                             input_clip_filename,
-                             output_path,
+                             input_clip_filename = NULL,
                              output_filename) {
-  require(rgeos)
-  require(sp)
-  require(pycno)
-  require(rgdal)
-  require(raster)
   
-  input <- readOGR(input_path, input_filename)
+  input <- raster::shapefile(input_filename)
   
-  pyc_input <- pycno(x = input,
-                     pops = input@data$pop_column,
+  pops <- as.numeric(input@data[, pop_column])
+  pops[is.na(pops)] <- 0
+  
+  pyc_input <- pycno::pycno(x = input,
+                     pops = pops,
                      celldim = celldim)
   
   polys <- as(pyc_input, "SpatialPolygonsDataFrame")
+  colnames(polys@data) <- "popdens"
   
-  bounds <- readOGR("/media/casey/APOC/Admin/California", "CAL_NAD8310_ADMIN_STUDYBOUNDS")
+  if (!is.null(input_clip_filename)) {
+    bounds <- raster::shapefile(input_clip_filename)
+    final <- raster::intersect(polys, bounds)
+  } else {
+    final <- polys
+  }
   
-  final <- crop(polys, bounds)
- 
-  writeOGR(final, "/media/casey/APOC/Admin/California", "CAL_NAD8310_DEMO_STUDY_POPDENS", driver = "ESRI Shapefile")
+  shapefile(final, filename = output_filename, overwrite = TRUE)
 }
+
+pycno_interpolate(input_filename = "/media/casey/APOC/Admin/Victoria/VIC_GDA9455_DEMO_SA2_POPDENS.shp",
+                  pop_column = "POP",
+                  celldim = 1000,
+                  input_clip_filename = NULL,
+                  output_filename = "/media/casey/APOC/Admin/Victoria/VIC_GDA9455_ADMIN_DEMO_POP.shp")
+
+pycno_interpolate(input_filename = "/media/casey/APOC/Admin/California/CAL_NAD8310_DEMO_CCD_POP.shp",
+                  pop_column = "DP0010001",
+                  celldim = 1000,
+                  input_clip_filename = "/media/casey/APOC/Admin/California/CAL_NAD8310_ADMIN_STUDYBOUNDS.shp",
+                  output_filename = "/media/casey/APOC/Admin/California/CAL_NAD8310_ADMIN_DEMO_POP.shp")

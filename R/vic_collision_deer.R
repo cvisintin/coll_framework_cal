@@ -94,18 +94,37 @@ roc(data$coll, predict(coll.glm, data, type="response"))  #Compare collision rec
 
 ################################# Sensitivity Analysis #################################
 
-n <- 100 #simulations to run
+n <- 1000 #simulations to run
+pb <- txtProgressBar(min = 0, max = n, style = 3)
+
+set.seed(123)
+slope_dist <- foreach(i = seq_len(n), .combine = c) %do% {
+  data_s <- transform(data, coll = sample(coll))
+  val.pred.glm <- predict(coll.glm, data_s, type="link")  #Make predictions with regression model fit on link scale
+  coef <- coef(glm(data_s$coll ~ val.pred.glm, family = binomial(link = "cloglog")))[2]
+  setTxtProgressBar(pb, i)
+  coef
+}
+
+slope_dist_rs <- abs(slope_dist)
+
+plot(density(slope_dist_rs), xlim = c(0,1))
+abline(v = coef(glm(data_s$coll ~ predict(coll.glm, data, type="link"), family = binomial(link = "cloglog")))[2], col="darkred")
 
 set.seed(123)
 roc_dist <- foreach(i = seq_len(n), .combine = c) %do% {
   data_s <- transform(data, coll = sample(coll))
-  roc(data_s$coll, predict(coll.glm, data_s, type="response"))
+  roc <- roc(data_s$coll, predict(coll.glm, data_s, type="response"))
+  setTxtProgressBar(pb, i)
+  roc
 }
 
 roc_dist_rs <- sapply(roc_dist, FUN = function(x) if(x < 0.5) {1-x} else {x})
 
 plot(density(roc_dist_rs), xlim = c(0.5,1))
 abline(v = roc(data$coll, predict(coll.glm, data, type="response")), col="darkred")
+
+close(pb)
 
 ################################# Aggregated Validation #################################
 
