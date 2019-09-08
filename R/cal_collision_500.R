@@ -82,7 +82,7 @@ data$tspd <- data$tspd * 1.60934
 
 apply(data, 2, range)
 
-cor(data[, 3:5])
+cor(data[, 5:7])
 
 length(data$coll[data$coll==1])
 
@@ -247,3 +247,60 @@ coll.glm <- glm(formula = coll ~ log(deer) + log(tvol) + I(log(tvol)^2) + log(ts
 summary(coll.glm)  #Examine fit of regression model
 paste("% Deviance Explained: ",round(((coll.glm$null.deviance - coll.glm$deviance)/coll.glm$null.deviance)*100,2),sep="")  #Report reduction in deviance
 save(coll.glm,file="output/deer_coll_glm_500")
+
+##################### Zero-inflated Poisson ##########################
+library(rethinking)
+library(stan)
+
+
+coll <- as.data.table(dbGetQuery(con,"
+  SELECT
+    r.uid AS uid, CAST(COUNT(p.geom) AS INTEGER) AS coll
+	FROM
+    gis_california.cal_nad8310_roads_study_500 as r,
+      (SELECT
+        id, geom
+      FROM
+        gis_california.cal_nad8310_fauna_cros_deer
+      WHERE
+        confidence != 'Best Guess'
+      AND
+        odatetime >= '2006-06-01 00:00') AS p
+  WHERE ST_DWithin(p.geom, r.geom, 10)
+  GROUP BY r.uid
+  "))
+setkey(coll,uid)
+
+data1 <- coll
+
+data <- copy(cov.data)
+data[data1, coll := i.coll]
+data <- na.omit(data)
+
+data$tspd <- data$tspd * 1.60934
+
+test <- zeroinfl(coll ~ log(deer) + log(tvol) + I(log(tvol)^2) + log(tspd) | x + y, offset=log(length), data = data)
+
+d <- list(coll = data$coll,
+          deer = log(data$deer),
+          tvol = log(data$tvol),
+          tvol2 = log(data$tvol)^2,
+          tspd = log(data$tspd),
+          length = log(data$length),
+          xcoord = data$x / 1000000,
+          ycoord = data$y / 1000000)
+
+coll.zip <- ulam(
+  alist(
+    coll ~ dzipois( p , lambda ),
+    logit(p) <- ap + bp1 * xcoord + bp2 * ycoord,
+    log(lambda) <- al + bl1 * deer + bl2 * tvol + bl3 * tvol2 + bl4 * tspd + length,
+    ap ~ dnorm( 0 , 1000 ),
+    al ~ dnorm( 0 , 1000 ),
+    bp1 ~ dnorm( 0 , 1000 ),
+    bp2 ~ dnorm( 0 , 1000 ),
+    bl1 ~ dnorm( 0 , 1000 ),
+    bl2 ~ dnorm( 0 , 1000 ),
+    bl3 ~ dnorm( 0 , 1000 ),
+    bl4 ~ dnorm( 0 , 1000 )
+  ) , data = d , chains = 3 , cores = 3, iter = 100)
